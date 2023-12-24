@@ -1,0 +1,147 @@
+From 34d3ea26563d657a065fbe121c16599313f53689 Mon Sep 17 00:00:00 2001
+From: Jérôme Duval <jerome.duval@gmail.com>
+Date: Sun, 17 Dec 2023 10:56:10 +0100
+Subject: [PATCH] acpi: add device tree attributes from _CLS if available
+
+means B_DEVICE_TYPE, B_DEVICE_SUB_TYPE, B_DEVICE_INTERFACE.
+_CLS is rare, it means I don't own devices with this attribute.
+
+from the spec: _CLS:
+Class Code – supplies OSPM with the PCI-defined class, subclass and programming interface for a device. Optional.
+---
+
+diff --git a/headers/os/drivers/ACPI.h b/headers/os/drivers/ACPI.h
+index d291a0e..162d563 100644
+--- a/headers/os/drivers/ACPI.h
++++ b/headers/os/drivers/ACPI.h
+@@ -253,7 +253,7 @@
+ 					size_t resultLength);
+ 
+ 	status_t	(*get_device_info)(const char *path, char** hid,
+-					char** cidList, size_t cidListLength, char** uid);
++					char** cidList, size_t cidListLength, char** uid, char** cls);
+ 	uint32		(*get_object_type)(const char *path);
+ 	status_t	(*get_object)(const char *path,
+ 					acpi_object_type **_returnValue);
+diff --git a/src/add-ons/kernel/bus_managers/acpi/ACPIPrivate.h b/src/add-ons/kernel/bus_managers/acpi/ACPIPrivate.h
+index 09b2169..9e9dade 100644
+--- a/src/add-ons/kernel/bus_managers/acpi/ACPIPrivate.h
++++ b/src/add-ons/kernel/bus_managers/acpi/ACPIPrivate.h
+@@ -116,7 +116,7 @@
+ 					size_t resultLength);
+ 
+ 	status_t	(*get_device_info)(const char *path, char **hid,
+-					char** cidList, size_t cidListCount, char** uid);
++					char** cidList, size_t cidListCount, char** uid, char** cls);
+ 	uint32		(*get_object_type)(const char *path);
+ 	status_t	(*get_object)(const char *path,
+ 					acpi_object_type **_returnValue);
+@@ -219,7 +219,7 @@
+ 	size_t resultLength);
+ 
+ status_t get_device_info(const char* path, char** hid, char** cidList,
+-	size_t cidListCount, char** uniqueId);
++	size_t cidListCount, char** uniqueId, char** cls);
+ status_t get_device_addr(const char* path, uint32* addr);
+ uint32 get_object_type(const char* path);
+ status_t get_object(const char* path, acpi_object_type** _returnValue);
+diff --git a/src/add-ons/kernel/bus_managers/acpi/BusManager.cpp b/src/add-ons/kernel/bus_managers/acpi/BusManager.cpp
+index 49ed822..d1e5413 100644
+--- a/src/add-ons/kernel/bus_managers/acpi/BusManager.cpp
++++ b/src/add-ons/kernel/bus_managers/acpi/BusManager.cpp
+@@ -525,7 +525,7 @@
+ 
+ status_t
+ get_device_info(const char *path, char** hid, char** cidList,
+-	size_t cidListCount, char** uid)
++	size_t cidListCount, char** uid, char** cls)
+ {
+ 	ACPI_HANDLE handle;
+ 	ACPI_DEVICE_INFO *info;
+@@ -552,6 +552,11 @@
+ 	if ((info->Valid & ACPI_VALID_UID) != 0 && uid != NULL)
+ 		*uid = strndup(info->UniqueId.String, info->UniqueId.Length);
+ 
++	if ((info->Valid & ACPI_VALID_CLS) != 0 && cls != NULL
++		&& info->ClassCode.Length >= ACPI_PCICLS_STRING_SIZE) {
++		*cls = strndup(info-> ClassCode.String, info->ClassCode.Length);
++	}
++
+ 	AcpiOsFree(info);
+ 	return B_OK;
+ }
+diff --git a/src/add-ons/kernel/bus_managers/acpi/Module.cpp b/src/add-ons/kernel/bus_managers/acpi/Module.cpp
+index cc5e9ef..865efc1 100644
+--- a/src/add-ons/kernel/bus_managers/acpi/Module.cpp
++++ b/src/add-ons/kernel/bus_managers/acpi/Module.cpp
+@@ -101,11 +101,12 @@
+ 
+ 				uint32 attrCount = 4;
+ 				char* hid = NULL;
+-				char* cidList[8] = { NULL };
++				char* cidList[11] = { NULL };
+ 				char* uid = NULL;
++				char* cls = NULL;
+ 				if (type == ACPI_TYPE_DEVICE) {
+ 					if (get_device_info(result, &hid, (char**)&cidList, 8,
+-						&uid) == B_OK) {
++						&uid, &cls) == B_OK) {
+ 						if (hid != NULL) {
+ 							attrs[attrCount].name = ACPI_DEVICE_HID_ITEM;
+ 							attrs[attrCount].type = B_STRING_TYPE;
+@@ -124,6 +125,21 @@
+ 							attrs[attrCount].value.string = uid;
+ 							attrCount++;
+ 						}
++						if (cls != NULL) {
++							uint32 clsClass = strtoul(cls, NULL, 16);
++							attrs[attrCount].name = B_DEVICE_TYPE;
++							attrs[attrCount].type = B_UINT16_TYPE;
++							attrs[attrCount].value.ui16 = (clsClass >> 16) & 0xff ;
++							attrCount++;
++							attrs[attrCount].name = B_DEVICE_SUB_TYPE;
++							attrs[attrCount].type = B_UINT16_TYPE;
++							attrs[attrCount].value.ui16 = (clsClass >> 8) & 0xff ;
++							attrCount++;
++							attrs[attrCount].name = B_DEVICE_INTERFACE;
++							attrs[attrCount].type = B_UINT16_TYPE;
++							attrs[attrCount].value.ui16 = (clsClass >> 0) & 0xff ;
++							attrCount++;
++						}
+ 					}
+ 					uint32 addr;
+ 					if (get_device_addr(result, &addr) == B_OK) {
+@@ -138,6 +154,7 @@
+ 						ACPI_DEVICE_MODULE_NAME, attrs, NULL, &deviceNode);
+ 				free(hid);
+ 				free(uid);
++				free(cls);
+ 				for (int i = 0; cidList[i] != NULL; i++)
+ 					free(cidList[i]);
+ 				if (status != B_OK)
+diff --git a/src/add-ons/kernel/bus_managers/acpi/NamespaceDump.cpp b/src/add-ons/kernel/bus_managers/acpi/NamespaceDump.cpp
+index 1f87c36..4c29a70 100644
+--- a/src/add-ons/kernel/bus_managers/acpi/NamespaceDump.cpp
++++ b/src/add-ons/kernel/bus_managers/acpi/NamespaceDump.cpp
+@@ -114,7 +114,7 @@
+ 			case ACPI_TYPE_DEVICE:
+ 			{
+ 				char* hid = NULL;
+-				device->acpi->get_device_info(result, &hid, NULL, 0, NULL);
++				device->acpi->get_device_info(result, &hid, NULL, 0, NULL, NULL);
+ 				strlcat(output, "     DEVICE (", sizeof(output));
+ 				if (hid != NULL) {
+ 					strlcat(output, hid, sizeof(output));
+diff --git a/src/add-ons/kernel/busses/i2c/pch/pch_i2c.cpp b/src/add-ons/kernel/busses/i2c/pch/pch_i2c.cpp
+index 667cc0a..dbe451f 100644
+--- a/src/add-ons/kernel/busses/i2c/pch/pch_i2c.cpp
++++ b/src/add-ons/kernel/busses/i2c/pch/pch_i2c.cpp
+@@ -338,7 +338,7 @@
+ 	char* hid = NULL;
+ 	char* cidList[8] = { NULL };
+ 	status = gACPI->get_device_info((const char*)buffer.pointer, &hid,
+-		(char**)&cidList, 8, NULL);
++		(char**)&cidList, 8, NULL, NULL);
+ 	if (status != B_OK) {
+ 		ERROR("pch_i2c_scan_bus_callback get_device_info failed\n");
+ 		return status;

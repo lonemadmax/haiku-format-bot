@@ -16,7 +16,7 @@ diff, and then if necessary, provide the improvements to the modified blocks.
 import os
 import re
 import subprocess
-from typing import TextIO
+from typing import TextIO, Optional
 
 FORMAT_COMMAND = 'clang-format-16'
 EXTENSION_PATTERN = (r".*\.(?:cpp|cc|c\+\+|cxx|cppm|ccm|cxxm|c\+\+m|c|cl|h|hh|hpp"
@@ -31,28 +31,37 @@ class PatchSegment:
     def format_range(self) -> str:
         return "%i:%i" % (self.start, self.end)
 
+    def __repr__(self):
+        return self.format_range()
 
-class ModifiedFile:
-    def __init__(self, filename: str):
+
+class RevisionFile:
+    def __init__(self, filename: str, contents: str):
         self.filename = filename
+        self.contents = contents
         self.segments: list[PatchSegment] = []
 
     def add_segment(self, start: int, end: int):
         self.segments.append(PatchSegment(start, end))
 
     def __repr__(self):
-        return self.filename
+        segments = []
+        for segment in self.segments:
+            segments.append(segment.format_range())
+        return "%s [%i segments] %s" % (self.filename, len(self.segments), ",".join(segments))
 
 
-def _parse_input_diff(diff: TextIO) -> list[ModifiedFile]:
+def _parse_input_diff(files: dict[str, RevisionFile], diff: TextIO):
     """Parses the input diff and formats a list of files and patch segments"""
-    modified_file = None
-    processed_files = []
+    modified_file: Optional[RevisionFile] = None
     for line in diff.readlines():
         match = re.search(r"^\+\+\+ (.*?/){%s}(\S*)" % "1", line)
         if match:
-            modified_file = ModifiedFile(match.group(2))
-            processed_files.append(modified_file)
+            try:
+                modified_file = files[match.group(2)]
+            except KeyError:
+                print("Log: diff file contains diff for %s but not part of files selected for change" % match.group(2))
+                continue
         if modified_file is None:
             continue
 
@@ -81,11 +90,8 @@ def _parse_input_diff(diff: TextIO) -> list[ModifiedFile]:
                 end_line += line_count - 1
             modified_file.add_segment(start_line, end_line)
 
-    # remove any files that do not have modification segments
-    return list(filter(lambda f: len(f.segments) > 0, processed_files))
 
-
-def _run_clang_format(input_file: ModifiedFile, tree: str) -> str:
+def _run_clang_format(input_file: RevisionFile, tree: str) -> str:
     """Run clang-format for the relevant segments of the input file and return the modified file"""
     command = [FORMAT_COMMAND, os.path.join(tree, input_file.filename)]
     for segment in input_file.segments:
