@@ -13,7 +13,6 @@
 This module has as input a unified diff, reformats all the lines touched by
 diff, and then if necessary, provide the improvements to the modified blocks.
 """
-import os
 import re
 import subprocess
 from typing import TextIO, Optional
@@ -38,11 +37,16 @@ class PatchSegment:
 class RevisionFile:
     def __init__(self, filename: str, contents: str):
         self.filename = filename
-        self.contents = contents
+        self.original_contents = contents
+        self.formatted_contents: Optional[str] = None
         self.segments: list[PatchSegment] = []
 
     def add_segment(self, start: int, end: int):
         self.segments.append(PatchSegment(start, end))
+
+    def set_formatted_contents(self, contents: str):
+        if self.original_contents != contents:
+            self.formatted_contents = contents
 
     def __repr__(self):
         segments = []
@@ -91,9 +95,9 @@ def _parse_input_diff(files: dict[str, RevisionFile], diff: TextIO):
             modified_file.add_segment(start_line, end_line)
 
 
-def _run_clang_format(input_file: RevisionFile, tree: str) -> str:
+def _run_clang_format(input_file: RevisionFile):
     """Run clang-format for the relevant segments of the input file and return the modified file"""
-    command = [FORMAT_COMMAND, os.path.join(tree, input_file.filename)]
+    command = [FORMAT_COMMAND]
     for segment in input_file.segments:
         command.extend(['-lines', segment.format_range()])
     try:
@@ -111,9 +115,9 @@ def _run_clang_format(input_file: RevisionFile, tree: str) -> str:
             'Failed to run "%s" - %s"' % (" ".join(command), e.strerror)
         )
 
-    stdout, stderr = p.communicate()
+    stdout, stderr = p.communicate(input_file.original_contents)
     if p.returncode != 0:
         raise RuntimeError(
             'Could not run %s. Error output:\n%s' % (" ".join(command), stderr)
         )
-    return stdout
+    input_file.set_formatted_contents(stdout)
