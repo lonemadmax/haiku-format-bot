@@ -39,10 +39,10 @@ class RevisionFile:
         self.filename = filename
         self.original_contents = contents
         self.formatted_contents: Optional[str] = None
-        self.segments: list[PatchSegment] = []
+        self.patch_segments: list[PatchSegment] = []
 
-    def add_segment(self, start: int, end: int):
-        self.segments.append(PatchSegment(start, end))
+    def add_patch_segment(self, start: int, end: int):
+        self.patch_segments.append(PatchSegment(start, end))
 
     def set_formatted_contents(self, contents: str):
         if self.original_contents != contents:
@@ -50,9 +50,68 @@ class RevisionFile:
 
     def __repr__(self):
         segments = []
-        for segment in self.segments:
+        for segment in self.patch_segments:
             segments.append(segment.format_range())
-        return "%s [%i segments] %s" % (self.filename, len(self.segments), ",".join(segments))
+        return "%s [%i segments] %s" % (self.filename, len(self.patch_segments), ",".join(segments))
+
+
+def _parse_diff(diff: list[str]) -> dict[str, list[tuple[int, Optional[int], int, Optional[int]]]]:
+    """Parse a diff file, and return a tuple with all change segments.
+
+    The input is a unified diff, split up as a list of lines.
+
+    The return value is a dict with a list of tuples. The key in the dict is the filename of the original file.
+    Each tuple in the list contains 4 elements:
+     - a_start: the starting line in the original file that is modified.
+     - a_end: the end line in the original file that is modified. If the modification only adds lines, a_end is `None`
+     - b_start: the starting line for changes in the modified file
+     - b_end: the end line with modifications. If the modifications only removes lines, this is set to `None`
+    If parsing was unsuccessful, the returned dict is empty.
+    """
+    filename = None
+    lines_by_file = {}
+    for line in diff:
+        # find a filename
+        match = re.search(r"^\+\+\+ (.*?/){%s}(\S*)" % "1", line)
+        if match:
+            filename = match.group(2)
+        if filename is None:
+            continue
+
+        # fetch all the values
+        match = re.search(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))?", line)
+        if match:
+            a_start = int(match.group(1))
+            a_end = a_start
+            line_count = 1
+            if match.group(2):
+                line_count = int(match.group(2))
+            if line_count != 0:
+                a_end += line_count - 1
+            else:
+                # In case the new file only adds line(s) and not modifies anything, the line count is 0.
+                a_end = None
+
+            b_start = int(match.group(3))
+            b_end = b_start
+            line_count = 1
+            if match.group(4):
+                line_count = int(match.group(4))
+                # The input is something like
+                #
+                # @@ -1, +0,0 @@
+                #
+                # which means no lines were added.
+                if line_count == 0:
+                    b_end = None
+            # Also format lines range if line_count is 0 in case of deleting
+            # surrounding statements.
+            if line_count != 0:
+                b_end += line_count - 1
+            lines_by_file.setdefault(filename, []).extend(
+                [(a_start, a_end, b_start, b_end)]
+            )
+    return lines_by_file
 
 
 def _parse_input_diff(files: dict[str, RevisionFile], diff: TextIO):
@@ -92,13 +151,13 @@ def _parse_input_diff(files: dict[str, RevisionFile], diff: TextIO):
             end_line = start_line
             if line_count != 0:
                 end_line += line_count - 1
-            modified_file.add_segment(start_line, end_line)
+            modified_file.add_patch_segment(start_line, end_line)
 
 
 def _run_clang_format(input_file: RevisionFile):
-    """Run clang-format for the relevant segments of the input file and return the modified file"""
+    """Run clang-format for the relevant segments of the input file and save the modified file"""
     command = [FORMAT_COMMAND]
-    for segment in input_file.segments:
+    for segment in input_file.patch_segments:
         command.extend(['-lines', segment.format_range()])
     try:
         p = subprocess.Popen(

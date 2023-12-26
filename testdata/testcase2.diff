@@ -1,0 +1,35 @@
+diff --git a/Jamfile b/Jamfile
+index 4c32d842de..02619e5835 100644
+--- a/Jamfile
++++ b/Jamfile
+@@ -4 +3,0 @@ SubDir HAIKU_TOP ;
+-local architectureObject ;
+@@ -42,0 +42 @@ AddHaikuImageSystemPackages [ FFilterByBuildFeatures
++This is an added line only.
+@@ -64 +64 @@ if $(HAIKU_PACKAGING_ARCHS[2]) {
+-	local architectureObject ;
++	local architectureObject ; single line modify
+@@ -84,3 +84,3 @@ if $(HAIKU_PACKAGING_ARCHS[2]) {
+-if [ FIsBuildFeatureEnabled openssl ] {
+-	AddHaikuImageSystemPackages openssl ;
+-}
++if [ FIsBuildFeatureEnabled openssl ] { multi
++	AddHaikuImageSystemPackages openssl ; line
++} modify
+@@ -92 +92,5 @@ AddHaikuImageSystemPackages $(HAIKU_IMAGE_ADDITIONAL_PACKAGES) ;
+-if $(HAIKU_DONT_INCLUDE_SRC) {
++if $(HAIKU_DONT_INCLUDE_SRC) { modify one line
++and
++then
++add
++some
+@@ -107,2 +111 @@ ExecuteDeferredSubIncludes ;
+-# reset subdir
+-SubDir HAIKU_TOP ;
++SubDir HAIKU_TOP ; removed the one above, and modified this one
+diff --git a/Jamrules b/Jamrules
+index f242565d9c..8457b51b41 100644
+--- a/Jamrules
++++ b/Jamrules
+@@ -12,0 +13 @@ if $(JAMBASEDATE) < 2018 {
++This is a modification in another file

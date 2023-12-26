@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from formatchecker.runner import RevisionFile, _parse_input_diff, _run_clang_format
+from formatchecker.runner import RevisionFile, _parse_input_diff, _run_clang_format, _parse_diff
 
 
 class RunnerTest(unittest.TestCase):
@@ -19,11 +19,21 @@ class RunnerTest(unittest.TestCase):
                 content = c.read()
             self.revisions[f[0]] = RevisionFile(f[0], content)
 
+    def test_patch_parser(self):
+        diff = None
+        with open(os.path.join('testdata', 'testcase2.diff')) as f:
+            diff = f.readlines()
+        segments = _parse_diff(diff)
+        expected = {
+            'Jamfile': [(4, 4, 3, None), (42, None, 42, 42), (64, 64, 64, 64), (84, 86, 84, 86), (92, 92, 92, 96),
+                        (107, 108, 111, 111)], 'Jamrules': [(12, None, 13, 13)]}
+        self.assertEqual(segments, expected)
+
     def test_info_diff(self):
         with open(os.path.join('testdata', 'testcase1.diff')) as diff:
             _parse_input_diff(self.revisions, diff)
         for testcase_file in self.TESTCASE1_FILES:
-            segments = self.revisions[testcase_file[0]].segments
+            segments = self.revisions[testcase_file[0]].patch_segments
             segments_strings = []
             for segment in segments:
                 segments_strings.append(segment.format_range())
