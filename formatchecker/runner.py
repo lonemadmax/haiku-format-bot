@@ -13,9 +13,11 @@
 This module has as input a unified diff, reformats all the lines touched by
 diff, and then if necessary, provide the improvements to the modified blocks.
 """
+import difflib
 import re
 import subprocess
-from typing import TextIO, Optional
+from io import StringIO
+from typing import TextIO, Optional, Iterator
 
 FORMAT_COMMAND = 'clang-format-16'
 EXTENSION_PATTERN = (r".*\.(?:cpp|cc|c\+\+|cxx|cppm|ccm|cxxm|c\+\+m|c|cl|h|hh|hpp"
@@ -34,15 +36,47 @@ class PatchSegment:
         return self.format_range()
 
 
+class FormatSegment:
+    def __init__(self, start: int, end: Optional[int], formatted_content: list[str]):
+        self.start = start
+        self.end = end
+        self.formatted_content = formatted_content
+
+    def is_insert(self):
+        return True if self.end is None else False
+
+    def is_modification(self):
+        return True if not self.is_insert() and not self.is_delete() else False
+
+    def is_delete(self):
+        return True if len(self.formatted_content) == 0 else False
+
+    def format_range(self) -> str:
+        end = self.end if self.end is not None else 0
+        return "%i:%i" % (self.start, end)
+
+    def __repr__(self):
+        operation = "(modification)"
+        if self.is_delete():
+            operation = "(deletion)"
+        elif self.is_insert():
+            operation = "(insert)"
+        return "%s %s" % (self.format_range(), operation)
+
+
 class RevisionFile:
     def __init__(self, filename: str, contents: str):
         self.filename = filename
         self.original_contents = contents
         self.formatted_contents: Optional[str] = None
         self.patch_segments: list[PatchSegment] = []
+        self.format_segments: list[FormatSegment] = []
 
     def add_patch_segment(self, start: int, end: int):
         self.patch_segments.append(PatchSegment(start, end))
+
+    def add_format_segment(self, start: int, end: Optional[int], format_contents: list[str]):
+        self.format_segments.append(FormatSegment(start, end, format_contents))
 
     def set_formatted_contents(self, contents: str):
         if self.original_contents != contents:
@@ -55,7 +89,7 @@ class RevisionFile:
         return "%s [%i segments] %s" % (self.filename, len(self.patch_segments), ",".join(segments))
 
 
-def _parse_diff(diff: list[str]) -> dict[str, list[tuple[int, Optional[int], int, Optional[int]]]]:
+def _parse_diff(diff: Iterator[str]) -> dict[str, list[tuple[int, Optional[int], int, Optional[int]]]]:
     """Parse a diff file, and return a tuple with all change segments.
 
     The input is a unified diff, split up as a list of lines.
@@ -116,7 +150,7 @@ def _parse_diff(diff: list[str]) -> dict[str, list[tuple[int, Optional[int], int
 
 def _parse_input_diff(files: dict[str, RevisionFile], diff: TextIO):
     """Parses the input diff and formats a list of files and patch segments"""
-    patch_segments = _parse_diff(diff.readlines())
+    patch_segments = _parse_diff(diff)
     for filename, segments in patch_segments.items():
         try:
             modified_file = files[filename]
@@ -157,3 +191,20 @@ def _run_clang_format(input_file: RevisionFile):
             'Could not run %s. Error output:\n%s' % (" ".join(command), stderr)
         )
     input_file.set_formatted_contents(stdout)
+
+
+def _split_format_segments(input_file: RevisionFile):
+    """Compare the original contents with the reformatted, and annotate the modified segments"""
+    if input_file.formatted_contents is None:
+        print("Cannot find differences, returning.")
+        return
+    original_lines = StringIO(input_file.original_contents).readlines()
+    formatted_lines = StringIO(input_file.formatted_contents).readlines()
+    diff = difflib.unified_diff(original_lines, formatted_lines, fromfile='patch/file', tofile='formatted/file', n=0)
+    segments = _parse_diff(diff)['file']
+    for a_start, a_end, b_start, b_end in segments:
+        if not b_end:
+            # The change is a deletion, so no new content is expected.
+            input_file.add_format_segment(a_start, a_end, [])
+        else:
+            input_file.add_format_segment(a_start, a_end, formatted_lines[b_start-1:b_end])
