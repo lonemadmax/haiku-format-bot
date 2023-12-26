@@ -116,42 +116,19 @@ def _parse_diff(diff: list[str]) -> dict[str, list[tuple[int, Optional[int], int
 
 def _parse_input_diff(files: dict[str, RevisionFile], diff: TextIO):
     """Parses the input diff and formats a list of files and patch segments"""
-    modified_file: Optional[RevisionFile] = None
-    for line in diff.readlines():
-        match = re.search(r"^\+\+\+ (.*?/){%s}(\S*)" % "1", line)
-        if match:
-            try:
-                modified_file = files[match.group(2)]
-            except KeyError:
-                print("Log: diff file contains diff for %s but not part of files selected for change" % match.group(2))
+    patch_segments = _parse_diff(diff.readlines())
+    for filename, segments in patch_segments.items():
+        try:
+            modified_file = files[filename]
+        except KeyError:
+            print("Log: diff file contains diff for %s but not part of files selected for change" % filename)
+            continue
+
+        for a_start, a_end, b_start, b_end in segments:
+            if b_end is None:
+                # The change is a deletion only, so there is no syntax to check in the modified file
                 continue
-        if modified_file is None:
-            continue
-
-        # check if the file matches the expected filename extension
-        if not re.match("^%s$" % EXTENSION_PATTERN, modified_file.filename, re.IGNORECASE):
-            continue
-
-        # find modified segments
-        match = re.search(r"^@@.*\+(\d+)(?:,(\d+))?", line)
-        if match:
-            start_line = int(match.group(1))
-            line_count = 1
-            if match.group(2):
-                line_count = int(match.group(2))
-                # The input is something like
-                #
-                # @@ -1, +0,0 @@
-                #
-                # which means no lines were added.
-                if line_count == 0:
-                    continue
-            # Also format lines range if line_count is 0 in case of deleting
-            # surrounding statements.
-            end_line = start_line
-            if line_count != 0:
-                end_line += line_count - 1
-            modified_file.add_patch_segment(start_line, end_line)
+            modified_file.add_patch_segment(b_start, b_end)
 
 
 def _run_clang_format(input_file: RevisionFile):
