@@ -6,8 +6,8 @@ from formatchecker.runner import RevisionFile, _parse_input_diff, _run_clang_for
 
 class RunnerTest(unittest.TestCase):
     TESTCASE1_FILES = [
-        ("src/apps/clock/cl_view.cpp", "46:73"),
-        ("src/apps/clock/cl_wind.cpp", "22:28,34:55,58:64,80:88"),
+        ("src/apps/clock/cl_view.cpp", "49:49,52:52,54:55,60:60,62:63,67:67,69:70"),
+        ("src/apps/clock/cl_wind.cpp", "25:25,37:49,51:52,61:61,83:83,85:85"),
     ]
 
     def setUp(self):

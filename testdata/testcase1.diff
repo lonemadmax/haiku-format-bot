@@ -21,75 +21,48 @@ diff --git a/src/apps/clock/Clock.rdef b/src/apps/clock/Clock.rdef
 index 91d3a77f60..8b19c4047a 100644
 --- a/src/apps/clock/Clock.rdef
 +++ b/src/apps/clock/Clock.rdef
-@@ -5,7 +5,7 @@ resource app_name_catalog_entry "x-vnd.Haiku-Clock:System name:Clock";
- 
- resource app_version {
- 	major  = 1,
+@@ -8 +8 @@ resource app_version {
 -	middle = 0,
 +	middle = 1,
- 	minor  = 0,
- 
- 	variety = B_APPV_FINAL,
 diff --git a/src/apps/clock/cl_view.cpp b/src/apps/clock/cl_view.cpp
 index 43c17ee28d..4829b462e2 100644
 --- a/src/apps/clock/cl_view.cpp
 +++ b/src/apps/clock/cl_view.cpp
-@@ -46,28 +46,28 @@ TOffscreenView::TOffscreenView(BRect frame, const char* name, short mRadius, sho
- dummy_label:
- 	if (error == B_OK) {
- 		size_t len;
+@@ -49 +49 @@ dummy_label:
 -		void* picH;
 +		void* picHelp;
- 		BRect theRect(0, 0, 82, 82);
- 		for (short loop = 0; loop <= 8; loop++) {
+@@ -52 +52 @@ dummy_label:
 -			if ((picH = rsrcs.FindResource('PICT', loop + 4, &len))) {
 +			if ((picHelp = rsrcs.FindResource('PICT', loop + 4, &len))) {
- 				fClockFace[loop] = new BBitmap(theRect, B_CMAP8);
+@@ -54,2 +54,2 @@ dummy_label:
 -				fClockFace[loop]->SetBits(picH, len, 0, B_CMAP8);
 -				free(picH);
 +				fClockFace[loop]->SetBits(picHelp, len, 0, B_CMAP8);
 +				free(picHelp);
- 			}
- 		}
- 
- 		theRect.Set(0, 0, 15, 15);
+@@ -60 +60 @@ dummy_label:
 -		if ((picH = rsrcs.FindResource(B_MINI_ICON_TYPE, "center", &len))) {
 +		if ((picHelp = rsrcs.FindResource(B_MINI_ICON_TYPE, "center", &len))) {
- 			fCenter = new BBitmap(theRect, B_CMAP8);
+@@ -62,2 +62,2 @@ dummy_label:
 -			fCenter->SetBits(picH, len, 0, B_CMAP8);
 -			free(picH);
 +			fCenter->SetBits(picHelp, len, 0, B_CMAP8);
 +			free(picHelp);
- 		}
- 
- 		theRect.Set(0, 0, 2, 2);
+@@ -67 +67 @@ dummy_label:
 -		if ((picH = rsrcs.FindResource('PICT', 13, &len))) {
 +		if ((picHelp = rsrcs.FindResource('PICT', 13, &len))) {
- 			fInner = new BBitmap(theRect, B_CMAP8);
+@@ -69,2 +69,2 @@ dummy_label:
 -			fInner->SetBits(picH, len, 0, B_CMAP8);
 -			free(picH);
 +			fInner->SetBits(picHelp, len, 0, B_CMAP8);
 +			free(picHelp);
- 		}
- 	}
- 
 diff --git a/src/apps/clock/cl_wind.cpp b/src/apps/clock/cl_wind.cpp
 index 6aa6b5f398..060bccef9c 100644
 --- a/src/apps/clock/cl_wind.cpp
 +++ b/src/apps/clock/cl_wind.cpp
-@@ -22,7 +22,7 @@ TClockWindow::TClockWindow(BRect frame, const char* title)
- 		B_NOT_RESIZABLE | B_NOT_ZOOMABLE | B_AVOID_FRONT, B_ALL_WORKSPACES),
- 	  fOnScreenView(NULL)
- {
+@@ -25 +25 @@ TClockWindow::TClockWindow(BRect frame, const char* title)
 -	_InitWindow();
 +		_InitWindow();
- }
- 
- 
-@@ -34,22 +34,22 @@ TClockWindow::~TClockWindow()
- bool
- TClockWindow::QuitRequested()
- {
+@@ -37,12 +37,13 @@ TClockWindow::QuitRequested()
 -	BPath path;
 -	if (find_directory (B_USER_SETTINGS_DIRECTORY, &path, true) == B_OK) {
 -		path.Append("Clock_settings");
@@ -115,36 +88,21 @@ index 6aa6b5f398..060bccef9c 100644
 +				write(ref, (char *)&seconds, sizeof(bool));
 +				close(ref);
 +			}
- 		}
+@@ -50,3 +51,2 @@ TClockWindow::QuitRequested()
 -	}
 -	be_app->PostMessage(B_QUIT_REQUESTED);
 -	return true;
 +		be_app->PostMessage(B_QUIT_REQUESTED);
 +		return true;
- }
- 
- 
-@@ -58,7 +58,7 @@ TClockWindow::_InitWindow()
- {
- 	// half second pulse rate
- 	SetPulseRate(500000);
+@@ -61 +61 @@ TClockWindow::_InitWindow()
 -	
 +
- 	fOnScreenView = new TOnscreenView(BRect(0, 0, 82, 82), "Clock", 22, 15, 41);
- 	AddChild(fOnScreenView);
- 
-@@ -80,9 +80,9 @@ TClockWindow::_InitWindow()
- 			fOnScreenView->ShowSecs(secs);
- 
- 			close(ref);
+@@ -83 +83 @@ TClockWindow::_InitWindow()
 -			
 +
- 			MoveTo(leftTop);
+@@ -85 +85 @@ TClockWindow::_InitWindow()
 - 
 +
- 			BRect frame = Frame();
- 			frame.InsetBy(-4, -4);
- 			// it's not visible so reposition. I'm not going to get
 diff --git a/src/apps/clock/clock.h b/src/apps/clock/clock.h
 old mode 100644
 new mode 100755
