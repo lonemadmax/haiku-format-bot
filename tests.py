@@ -1,3 +1,11 @@
+#
+# Copyright 2023 Haiku, Inc. All rights reserved.
+# Distributed under the terms of the MIT License.
+#
+# Authors:
+#  Niels Sascha Reedijk, niels.reedijk@gmail.com
+#
+
 import os
 import unittest
 
