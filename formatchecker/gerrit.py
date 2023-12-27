@@ -12,7 +12,7 @@ import requests
 from base64 import b64decode
 from urllib.parse import quote, urljoin
 
-from models import Change, File
+from .models import Change, File
 
 
 class Context:

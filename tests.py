@@ -9,7 +9,8 @@
 import os
 import unittest
 
-from formatchecker.runner import RevisionFile, _parse_input_diff, _run_clang_format, _parse_diff, \
+from formatchecker.models import File
+from formatchecker.runner import _parse_input_diff, _run_clang_format, _parse_diff, \
     _split_format_segments
 
 
@@ -25,8 +26,8 @@ class RunnerTest(unittest.TestCase):
         for f in self.TESTCASE1_FILES:
             testfile_name = "testcase1_" + os.path.basename(f[0])
             with open(os.path.join('testdata', testfile_name)) as c:
-                content = c.read()
-            self.revisions[f[0]] = RevisionFile(f[0], content)
+                content = c.readlines()
+            self.revisions[f[0]] = File(f[0], content, content)
         print("setup")
 
         # Test runner._parse_info_diff
@@ -66,10 +67,9 @@ class RunnerTest(unittest.TestCase):
         self.assertEqual(len(input_file.format_segments[2].formatted_content), 3)
 
     def test_patch_parser(self):
-        diff = None
         with open(os.path.join('testdata', 'testcase2.diff')) as f:
-            diff = f.readlines()
-        segments = _parse_diff(diff)
+            segments = _parse_diff(f)
+
         expected = {
             'Jamfile': [(4, 4, 3, None), (42, None, 42, 42), (64, 64, 64, 64), (84, 86, 84, 86), (92, 92, 92, 96),
                         (107, 108, 111, 111)], 'Jamrules': [(12, None, 13, 13)]}
