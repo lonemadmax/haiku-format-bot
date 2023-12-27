@@ -54,3 +54,14 @@ class Context:
                 base_content = ""
             files.append(File(filename, StringIO(base_content).readlines(), StringIO(patch_content).readlines()))
         return Change(change_id, files)
+
+    def get_change_id_from_number(self, change_number: int):
+        """Convert a change number (common in the URL) into a change id"""
+        response = requests.get(urljoin(self._gerrit_url, "changes/"), params={"q": "change:%i" % change_number})
+        if response.status_code != 200:
+            raise RuntimeError("Invalid response from %s: %i (expected 200)" % (response.url, response.status_code))
+        if not response.text.startswith(")]}'"):
+            raise RuntimeError("Invalid response from %s: content does not start with marker" % response.url)
+        response_dict: dict = json.loads(response.text[4:])
+        # The change list is always a list with one response.
+        return response_dict[0]["id"]
