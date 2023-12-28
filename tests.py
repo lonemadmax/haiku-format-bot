@@ -46,7 +46,7 @@ class RunnerTest(unittest.TestCase):
             for segment in self.revisions[testcase_file[0]].patch_segments:
                 segments.append("%i:%i" % (segment.start, segment.end))
             formatted_contents = run_clang_format(self.revisions[testcase_file[0]].patch_contents, segments)
-            self.revisions[testcase_file[0]].set_formatted_contents(formatted_contents)
+            self.revisions[testcase_file[0]].formatted_contents = formatted_contents
             if testcase_file[2]:
                 # we are expecting a value
                 self.assertIsNotNone(self.revisions[testcase_file[0]].formatted_contents)

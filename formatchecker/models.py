@@ -87,7 +87,7 @@ class File:
         self.filename = filename
         self._base_contents = base
         self._patch_contents = patch
-        self.formatted_contents: list[str] | None = None
+        self._formatted_contents: list[str] | None = None
         self.format_segments: list[FormatSegment] = []
         self._calculate_patch_segments()
 
@@ -111,6 +111,16 @@ class File:
         self._calculate_patch_segments()
 
     @property
+    def formatted_contents(self) -> list[str] | None:
+        return self._formatted_contents
+
+    @formatted_contents.setter
+    def formatted_contents(self, contents: list[str] | None):
+        if self._patch_contents != contents:
+            self._formatted_contents = contents
+        self._calculate_formatted_segments()
+
+    @property
     def patch_segments(self) -> list[Segment]:
         """Read-only property that contains all the segments in the patched contents that are added or modified in
         comparison to the base content. If lines are deleted in the new content, those segments are ignored.
@@ -127,12 +137,6 @@ class File:
         """Add a format segment to this file. A format segment which part of the patched content
         needs to be reformated in order to be in compliance with the style."""
         self.format_segments.append(FormatSegment(start, end, format_contents))
-
-    def set_formatted_contents(self, contents: list[str]):
-        """Method to be used to store the output of the external format checker (clang-format or
-        haiku-format)."""
-        if self.patch_contents != contents:
-            self.formatted_contents = contents
 
     def _calculate_patch_segments(self):
         """Internal method to calculate the segments that are inserted or modified in the patch in comparison to the
@@ -152,6 +156,9 @@ class File:
                 # The change is a deletion only, so there is no syntax to check in the modified file
                 continue
             self._patch_segments.append(Segment(b_start, b_end))
+
+    def _calculate_formatted_segments(self):
+        pass
 
     def __repr__(self):
         return "Gerrit file %s" % self.filename
