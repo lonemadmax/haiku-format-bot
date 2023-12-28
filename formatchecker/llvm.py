@@ -10,8 +10,9 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
 """
-This module has as input a unified diff, reformats all the lines touched by
-diff, and then if necessary, provide the improvements to the modified blocks.
+This module contains various algorithms that are based on the `clang-format-diff.py` code that
+is part of LLVM. The original logic has been split into various utility functions, and has
+been enhanced in places.
 """
 import difflib
 import re
@@ -26,10 +27,11 @@ EXTENSION_PATTERN = (r".*\.(?:cpp|cc|c\+\+|cxx|cppm|ccm|cxxm|c\+\+m|c|cl|h|hh|hp
                      r"|hxx|m|mm|inc|js|ts|proto|protodevel|java|cs|json|s?vh?)")
 
 
-def _parse_diff(diff: Iterator[str]) -> dict[str, list[tuple[int, Optional[int], int, Optional[int]]]]:
+def parse_diff_segments(diff: Iterator[str]) -> dict[str, list[tuple[int, Optional[int], int, Optional[int]]]]:
     """Parse a diff file, and return a tuple with all change segments.
 
-    The input is a unified diff, split up as a list of lines.
+    The input is a unified diff, split up as an iterator that iterates over lines. The input can be the output of
+    the `difflib.unified_diff()` function, or a file handle that opens a file in text mode.
 
     The return value is a dict with a list of tuples. The key in the dict is the filename of the original file.
     Each tuple in the list contains 4 elements:
@@ -87,7 +89,7 @@ def _parse_diff(diff: Iterator[str]) -> dict[str, list[tuple[int, Optional[int],
 
 def _parse_input_diff(files: dict[str, File], diff: TextIO):
     """Parses the input diff and formats a list of files and patch segments"""
-    patch_segments = _parse_diff(diff)
+    patch_segments = parse_diff_segments(diff)
     for filename, segments in patch_segments.items():
         try:
             modified_file = files[filename]
@@ -137,7 +139,7 @@ def _split_format_segments(input_file: File):
         return
     diff = difflib.unified_diff(input_file.patch_contents, input_file.formatted_contents, fromfile='patch/file',
                                 tofile='formatted/file', n=0)
-    segments = _parse_diff(diff)['file']
+    segments = parse_diff_segments(diff)['file']
     for a_start, a_end, b_start, b_end in segments:
         if not b_end:
             # The change is a deletion, so no new content is expected.

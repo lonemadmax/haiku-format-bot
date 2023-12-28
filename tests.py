@@ -10,7 +10,7 @@ import os
 import unittest
 
 from formatchecker.models import File
-from formatchecker.llvm import _parse_input_diff, _run_clang_format, _parse_diff, \
+from formatchecker.llvm import _parse_input_diff, _run_clang_format, parse_diff_segments, \
     _split_format_segments
 
 
@@ -68,7 +68,7 @@ class RunnerTest(unittest.TestCase):
 
     def test_patch_parser(self):
         with open(os.path.join('testdata', 'testcase2.diff')) as f:
-            segments = _parse_diff(f)
+            segments = parse_diff_segments(f)
 
         expected = {
             'Jamfile': [(4, 4, 3, None), (42, None, 42, 42), (64, 64, 64, 64), (84, 86, 84, 86), (92, 92, 92, 96),
