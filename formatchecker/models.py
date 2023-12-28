@@ -158,7 +158,11 @@ class File:
 
         diff = difflib.unified_diff(self._base_contents, self._patch_contents, fromfile='base/file',
                                     tofile='patch/file', n=0)
-        segments = parse_diff_segments(diff)['file']
+        try:
+            segments = parse_diff_segments(diff)['file']
+        except KeyError:
+            # there are no differences
+            return
         for a_start, a_end, b_start, b_end in segments:
             if b_end is None:
                 # The change is a deletion only, so there is no syntax to check in the modified file
