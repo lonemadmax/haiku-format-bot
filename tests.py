@@ -10,7 +10,7 @@ import os
 import unittest
 
 from formatchecker.models import File
-from formatchecker.runner import _parse_input_diff, _run_clang_format, _parse_diff, \
+from formatchecker.llvm import _parse_input_diff, _run_clang_format, _parse_diff, \
     _split_format_segments
 
 
