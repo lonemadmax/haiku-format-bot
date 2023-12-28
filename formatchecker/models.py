@@ -8,6 +8,9 @@
 """
 This module contains the model classes that are shared between the various modules of this tool.
 """
+import difflib
+
+from .llvm import parse_diff_segments
 
 
 class Segment:
@@ -77,17 +80,48 @@ class FormatSegment(Segment):
 class File:
     """Represents a file in a Gerrit change, including its content"""
     def __init__(self, filename: str, base: list[str] | None, patch: list[str] | None):
-        self.filename = filename
-        self.base_contents = base
-        self.patch_contents = patch
-        self.formatted_contents: list[str] | None = None
-        self.patch_segments: list[Segment] = []
-        self.format_segments: list[FormatSegment] = []
+        # set up internal variables used by the property getters/setters
+        self._patch_segments: list[Segment] = []
 
-    def add_patch_segment(self, start: int, end: int):
-        """Add a patch segment to this file. A patch segment is a marker which part of the
-        patched content is a modification in comparison to the base content."""
-        self.patch_segments.append(Segment(start, end))
+        # set up object
+        self.filename = filename
+        self._base_contents = base
+        self._patch_contents = patch
+        self.formatted_contents: list[str] | None = None
+        self.format_segments: list[FormatSegment] = []
+        self._calculate_patch_segments()
+
+    @property
+    def base_contents(self) -> list[str] | None:
+        return self._base_contents
+
+    @base_contents.setter
+    def base_contents(self, base: list[str] | None):
+        self._base_contents = base
+        print("base %s patch %s" % (self._base_contents, self._patch_contents))
+        self._calculate_patch_segments()
+
+    @property
+    def patch_contents(self) -> list[str] | None:
+        return self._patch_contents
+
+    @patch_contents.setter
+    def patch_contents(self, patch: list[str] | None):
+        self._patch_contents = patch
+        self._calculate_patch_segments()
+
+    @property
+    def patch_segments(self) -> list[Segment]:
+        """Read-only property that contains all the segments in the patched contents that are added or modified in
+        comparison to the base content. If lines are deleted in the new content, those segments are ignored.
+        Getting this attribute will raise a `RuntimeError` if there is no base or patch content, and the segments
+        therefore could not have been calculated.
+        """
+        if self._base_contents is None or self._patch_contents is None:
+            raise RuntimeError(
+                "This File does not have base_contents or patch_contents, so no patch_segments are known"
+            )
+        return self._patch_segments
 
     def add_format_segment(self, start: int, end: int | None, format_contents: list[str]):
         """Add a format segment to this file. A format segment which part of the patched content
@@ -99,6 +133,25 @@ class File:
         haiku-format)."""
         if self.patch_contents != contents:
             self.formatted_contents = contents
+
+    def _calculate_patch_segments(self):
+        """Internal method to calculate the segments that are inserted or modified in the patch in comparison to the
+        base. Deletions are ignored.
+        """
+        # clear any previously calculated patch contents
+        self._patch_segments.clear()
+        if self._base_contents is None or self._patch_contents is None:
+            # nothing to compare
+            return
+
+        diff = difflib.unified_diff(self._base_contents, self._patch_contents, fromfile='base/file',
+                                    tofile='patch/file', n=0)
+        segments = parse_diff_segments(diff)['file']
+        for a_start, a_end, b_start, b_end in segments:
+            if b_end is None:
+                # The change is a deletion only, so there is no syntax to check in the modified file
+                continue
+            self._patch_segments.append(Segment(b_start, b_end))
 
     def __repr__(self):
         return "Gerrit file %s" % self.filename

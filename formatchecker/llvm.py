@@ -14,13 +14,10 @@ This module contains various algorithms that are based on the `clang-format-diff
 is part of LLVM. The original logic has been split into various utility functions, and has
 been enhanced in places.
 """
-import difflib
 import re
 import subprocess
 from io import StringIO
-from typing import TextIO, Optional, Iterator
-
-from .models import File
+from typing import Optional, Iterator
 
 FORMAT_COMMAND = 'clang-format-16'
 EXTENSION_PATTERN = (r".*\.(?:cpp|cc|c\+\+|cxx|cppm|ccm|cxxm|c\+\+m|c|cl|h|hh|hpp"
@@ -87,28 +84,13 @@ def parse_diff_segments(diff: Iterator[str]) -> dict[str, list[tuple[int, Option
     return lines_by_file
 
 
-def _parse_input_diff(files: dict[str, File], diff: TextIO):
-    """Parses the input diff and formats a list of files and patch segments"""
-    patch_segments = parse_diff_segments(diff)
-    for filename, segments in patch_segments.items():
-        try:
-            modified_file = files[filename]
-        except KeyError:
-            print("Log: diff file contains diff for %s but not part of files selected for change" % filename)
-            continue
-
-        for a_start, a_end, b_start, b_end in segments:
-            if b_end is None:
-                # The change is a deletion only, so there is no syntax to check in the modified file
-                continue
-            modified_file.add_patch_segment(b_start, b_end)
-
-
-def _run_clang_format(input_file: File):
-    """Run clang-format for the relevant segments of the input file and save the modified file"""
+def run_clang_format(contents: list[str], segment_ranges: list[str]) -> list[str]:
+    """Run clang-format over a contents, limited to a set of ranges. The output of clang-format is returned as a list
+    of lines
+    """
     command = [FORMAT_COMMAND]
-    for segment in input_file.patch_segments:
-        command.extend(['-lines', segment.format_range()])
+    for segment in segment_ranges:
+        command.extend(['-lines', segment])
     try:
         p = subprocess.Popen(
             command,
@@ -124,25 +106,25 @@ def _run_clang_format(input_file: File):
             'Failed to run "%s" - %s"' % (" ".join(command), e.strerror)
         )
 
-    stdout, stderr = p.communicate("".join(input_file.patch_contents))
+    stdout, stderr = p.communicate("".join(contents))
     if p.returncode != 0:
         raise RuntimeError(
             'Could not run %s. Error output:\n%s' % (" ".join(command), stderr)
         )
-    input_file.set_formatted_contents(StringIO(stdout).readlines())
+    return StringIO(stdout).readlines()
 
 
-def _split_format_segments(input_file: File):
-    """Compare the original contents with the reformatted, and annotate the modified segments"""
-    if input_file.formatted_contents is None:
-        print("Cannot find differences, returning.")
-        return
-    diff = difflib.unified_diff(input_file.patch_contents, input_file.formatted_contents, fromfile='patch/file',
-                                tofile='formatted/file', n=0)
-    segments = parse_diff_segments(diff)['file']
-    for a_start, a_end, b_start, b_end in segments:
-        if not b_end:
-            # The change is a deletion, so no new content is expected.
-            input_file.add_format_segment(a_start, a_end, [])
-        else:
-            input_file.add_format_segment(a_start, a_end, input_file.formatted_contents[b_start-1:b_end])
+# def _split_format_segments(input_file: File):
+#     """Compare the original contents with the reformatted, and annotate the modified segments"""
+#     if input_file.formatted_contents is None:
+#         print("Cannot find differences, returning.")
+#         return
+#     diff = difflib.unified_diff(input_file.patch_contents, input_file.formatted_contents, fromfile='patch/file',
+#                                 tofile='formatted/file', n=0)
+#     segments = parse_diff_segments(diff)['file']
+#     for a_start, a_end, b_start, b_end in segments:
+#         if not b_end:
+#             # The change is a deletion, so no new content is expected.
+#             input_file.add_format_segment(a_start, a_end, [])
+#         else:
+#             input_file.add_format_segment(a_start, a_end, input_file.formatted_contents[b_start-1:b_end])
