@@ -112,19 +112,3 @@ def run_clang_format(contents: list[str], segment_ranges: list[str]) -> list[str
             'Could not run %s. Error output:\n%s' % (" ".join(command), stderr)
         )
     return StringIO(stdout).readlines()
-
-
-# def _split_format_segments(input_file: File):
-#     """Compare the original contents with the reformatted, and annotate the modified segments"""
-#     if input_file.formatted_contents is None:
-#         print("Cannot find differences, returning.")
-#         return
-#     diff = difflib.unified_diff(input_file.patch_contents, input_file.formatted_contents, fromfile='patch/file',
-#                                 tofile='formatted/file', n=0)
-#     segments = parse_diff_segments(diff)['file']
-#     for a_start, a_end, b_start, b_end in segments:
-#         if not b_end:
-#             # The change is a deletion, so no new content is expected.
-#             input_file.add_format_segment(a_start, a_end, [])
-#         else:
-#             input_file.add_format_segment(a_start, a_end, input_file.formatted_contents[b_start-1:b_end])

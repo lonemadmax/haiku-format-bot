@@ -88,7 +88,7 @@ class File:
         self._base_contents = base
         self._patch_contents = patch
         self._formatted_contents: list[str] | None = None
-        self.format_segments: list[FormatSegment] = []
+        self._format_segments: list[FormatSegment] = []
         self._calculate_patch_segments()
 
     @property
@@ -133,10 +133,18 @@ class File:
             )
         return self._patch_segments
 
-    def add_format_segment(self, start: int, end: int | None, format_contents: list[str]):
-        """Add a format segment to this file. A format segment which part of the patched content
-        needs to be reformated in order to be in compliance with the style."""
-        self.format_segments.append(FormatSegment(start, end, format_contents))
+    @property
+    def format_segments(self) -> list[FormatSegment]:
+        """Read-only property that contains all the segments in the patched content that have been reformatted by
+        the formatter.
+        Getting this attribute will raise a `RuntimeError` if there is no patch or formatted content, which means
+        there are no segments calculated.
+        """
+        if self._patch_contents is None or self._formatted_contents is None:
+            raise RuntimeError(
+                "This File does not have patch_contents or format_contents, so no format_segments are known"
+            )
+        return self._format_segments
 
     def _calculate_patch_segments(self):
         """Internal method to calculate the segments that are inserted or modified in the patch in comparison to the
@@ -158,7 +166,20 @@ class File:
             self._patch_segments.append(Segment(b_start, b_end))
 
     def _calculate_formatted_segments(self):
-        pass
+        """Compare the original contents with the reformatted, and annotate the modified segments"""
+        self._format_segments.clear()
+        if self._patch_contents is None or self._formatted_contents is None:
+            # Nothing to compare
+            return
+        diff = difflib.unified_diff(self._patch_contents, self._formatted_contents, fromfile='patch/file',
+                                    tofile='formatted/file', n=0)
+        segments = parse_diff_segments(diff)['file']
+        for a_start, a_end, b_start, b_end in segments:
+            if not b_end:
+                # The change is a deletion, so no new content is expected.
+                self._format_segments.append(FormatSegment(a_start, a_end, []))
+            else:
+                self._format_segments.append(FormatSegment(a_start, a_end, self._formatted_contents[b_start-1:b_end]))
 
     def __repr__(self):
         return "Gerrit file %s" % self.filename
