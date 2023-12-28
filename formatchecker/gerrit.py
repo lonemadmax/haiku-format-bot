@@ -45,7 +45,7 @@ class Context:
                 patch_content = b64decode(response.text).decode("utf-8")
             else:
                 patch_content = ""
-            if status != "C":
+            if status != "A":
                 response = requests.get(file_get_url, params={"parent": "1"})
                 if response.status_code != 200:
                     raise RuntimeError("Invalid response from %s: %i (expected 200)" % (response.url, response.status_code))
