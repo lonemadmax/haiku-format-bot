@@ -59,7 +59,7 @@ def reformat_change(gerrit_url:str, change_id: int | str):
 
 def _change_to_review_input(change: Change) -> ReviewInput:
     """Internal function that converts a change into a ReviewInput object that can be pushed to Gerrit"""
-    comments = []
+    comments: dict[str, list[RobotCommentInput]] = {}
     run_id = str(datetime.datetime.now())
     for f in change.files:
         if f.formatted_contents is None or len(f.format_segments) == 0:
@@ -74,9 +74,10 @@ def _change_to_review_input(change: Change) -> ReviewInput:
                 segment.start, 0, end, len(f.patch_contents[end])
             ), "".join(segment.formatted_content))
             suggestions.append(FixSuggestion("Suggestion from `haiku-format`", [replacement_info]))
-        comments.append(RobotCommentInput(
+        comments.setdefault(f.filename, []).extend([RobotCommentInput(
             f.filename, "Experimental `haiku-format` bot", run_id, fix_suggestions=suggestions
-        ))
+        )])
+
     if len(comments) == 0:
         message = "Experimental `haiku-format` bot: no formatting changes suggested for this commit."
     else:
