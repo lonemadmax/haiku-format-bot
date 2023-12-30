@@ -80,11 +80,12 @@ def _change_to_review_input(change: Change) -> ReviewInput:
     if len(comments) == 0:
         message = "Experimental `haiku-format` bot: no formatting changes suggested for this commit."
     else:
-        message = ("Experimental `haiku-format` bot: some formatting changes suggested. Note that this bot is "
+        message = ("Experimental `haiku-format` bot: some formatting changes suggested.\nNote that this bot is "
                    "experimental and the suggestions may not be correct. There is a known issue with changes "
                    "in header files: `haiku-format` does not yet correctly output the column layout of the contents "
                    "of classes.\n\nYou can see and apply the suggestions by running `haiku-format` in your local "
-                   "repository.")
+                   "repository. For example, if in your local checkout this change is applied to a local checkout, you"
+                   "can use the following command to automatically reformat:\n```\ngit-haiku-format HEAD~\n```")
 
     return ReviewInput(message=message, comments=comments)
 
