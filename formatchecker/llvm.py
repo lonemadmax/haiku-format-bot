@@ -87,6 +87,8 @@ def run_clang_format(contents: list[str], segment_ranges: list[str]) -> list[str
     of lines
     """
     command = [FORMAT_COMMAND]
+    # TODO see notes: clang-format seems to resort includes even outside of the changed segments
+    # command.append('-sort-includes=0')
     for segment in segment_ranges:
         command.extend(['-lines', segment])
     try:
