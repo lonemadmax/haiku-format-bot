@@ -10,7 +10,7 @@ This module contains the model classes that are shared between the various modul
 """
 import difflib
 from dataclasses import dataclass
-from enum import StrEnum, auto
+from enum import Enum, StrEnum, auto
 
 from .llvm import parse_diff_segments
 
@@ -40,42 +40,49 @@ class Segment:
             return "Segment %i (insert point)" % self.start
 
 
+class ReformatType(Enum):
+    INSERTION = auto()
+    MODIFICATION = auto()
+    DELETION = auto()
+
+
 class FormatSegment(Segment):
     """Represents a reformatted segment. The segment can be """
     def __init__(self, start: int, end: int | None, formatted_content: list[str]):
         super().__init__(start, end)
         self.formatted_content = formatted_content
 
-    def is_insert(self):
-        """Returns true if the segment is an insert segment, which means that the start point
-        represents the insert point of the new formatted content.
+    @property
+    def reformat_type(self) -> ReformatType:
+        """Get the type of reformatting in this format segment.
+        `ReformatType.INSERT` means that this modification inserts new content. The start point represents the insert
+        point of the new formatted content.
         For example, this can happen if the style guide mandates a newline after a certain
         statement or construct. The original content is not modified, but something is added.
         Insert segments will not have an end point.
-        """
-        return True if self.end is None else False
-
-    def is_modification(self):
-        """Returns true if the segment is a modification segment, which means that the contents
-        at the range of the segment needs to be replaced with the lines in formatted_content.
+        `ReformatType.MODIFICATION` means that the contents at the range of the segment needs to be replaced
+        with the lines in formatted_content.
         Modification segments will have a start and an end point. The formatted content can have
         a different number of lines as the original range.
-        """
-        return True if not self.is_insert() and not self.is_delete() else False
-
-    def is_delete(self):
-        """Returns true if the segment is a deletion segment, which means that the range of lines
-        need to be removed.
+        `ReformatType.DELETION` means that the range of lines need to be removed.
         For example, this can happen if the input has more newlines than the style guide mandates.
         """
-        return True if len(self.formatted_content) == 0 else False
+        if self.end is None:
+            return ReformatType.INSERTION
+        elif len(self.formatted_content) == 0:
+            return ReformatType.DELETION
+        else:
+            return ReformatType.MODIFICATION
 
     def __repr__(self):
-        operation = "(modification)"
-        if self.is_delete():
-            operation = "(deletion)"
-        elif self.is_insert():
-            operation = "(insert)"
+        match self.reformat_type:
+            case ReformatType.INSERTION:
+                operation = "(insert)"
+            case ReformatType.MODIFICATION:
+                operation = "(modification)"
+            case ReformatType.DELETION:
+                operation = "(deletion)"
+
         return "%s %s" % (super().__repr__(), operation)
 
 

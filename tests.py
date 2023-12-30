@@ -9,7 +9,7 @@
 import os
 import unittest
 
-from formatchecker.models import File
+from formatchecker.models import File, ReformatType
 from formatchecker.llvm import run_clang_format, parse_diff_segments
 
 
@@ -56,15 +56,15 @@ class RunnerTest(unittest.TestCase):
         # Test if the File object correctly calculates the reformatted segments
         input_file = self.revisions[self.TESTCASE1_FILES[1][0]]
         self.assertEqual(len(input_file.format_segments), 3)
-        self.assertTrue(input_file.format_segments[0].is_modification())
+        self.assertEqual(input_file.format_segments[0].reformat_type, ReformatType.MODIFICATION)
         self.assertTrue(input_file.format_segments[0].start, 25)
         self.assertTrue(input_file.format_segments[0].end, 25)
         self.assertEqual(len(input_file.format_segments[0].formatted_content), 1)
-        self.assertTrue(input_file.format_segments[1].is_modification())
+        self.assertEqual(input_file.format_segments[1].reformat_type, ReformatType.MODIFICATION)
         self.assertTrue(input_file.format_segments[1].start, 37)
         self.assertTrue(input_file.format_segments[1].end, 49)
         self.assertEqual(len(input_file.format_segments[1].formatted_content), 12)
-        self.assertTrue(input_file.format_segments[2].is_modification())
+        self.assertEqual(input_file.format_segments[2].reformat_type, ReformatType.MODIFICATION)
         self.assertTrue(input_file.format_segments[2].start, 51)
         self.assertTrue(input_file.format_segments[2].end, 52)
         self.assertEqual(len(input_file.format_segments[2].formatted_content), 3)

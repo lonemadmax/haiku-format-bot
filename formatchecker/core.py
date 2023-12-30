@@ -17,7 +17,7 @@ import re
 import sys
 
 from .gerrit import Context
-from .models import Change, ReviewInput, CommentRange, CommentInput
+from .models import Change, ReviewInput, CommentRange, CommentInput, ReformatType
 from .llvm import run_clang_format
 
 EXTENSION_PATTERN = (r"^.*\.(?:cpp|cc|c\+\+|cxx|cppm|ccm|cxxm|c\+\+m|c|cl|h|hh|hpp"
@@ -69,13 +69,22 @@ def _change_to_review_input(change: Change) -> ReviewInput:
             continue
         for segment in f.format_segments:
             end = segment.end
-            if end is None:
-                end = segment.start
+            match segment.reformat_type:
+                case ReformatType.INSERTION:
+                    end = segment.start
+                    operation = "insert after"
+                case ReformatType.MODIFICATION:
+                    operation = "change"
             # As per the documentation, set the end point to character 0 of the next line to select all lines
             # between start_line and end_line (excluding any content of end_line)
             # https://review.haiku-os.org/Documentation/rest-api-changes.html#comment-range
-            comment_range = CommentRange(segment.start, 0, end + 1, 0)
-            message = "Suggestion from `haiku-format`:\n```c++\n%s\n```" % "".join(segment.formatted_content)
+            end += 1
+            comment_range = CommentRange(segment.start, 0, end, 0)
+            if ReformatType.DELETION:
+                message = "Suggestion from `haiku-format` is to remove this line/these lines."
+            else:
+                message = ("Suggestion from `haiku-format` (%s):\n```c++\n%s```"
+                           % (operation, "".join(segment.formatted_content)))
             comments.setdefault(f.filename, []).extend([CommentInput(
                 message=message, range=comment_range
             )])
