@@ -17,7 +17,7 @@ import re
 import sys
 
 from .gerrit import Context
-from .models import Change, ReviewInput, FixSuggestion, FixReplacementInfo, CommentRange, CommentInput
+from .models import Change, ReviewInput, CommentRange, CommentInput
 from .llvm import run_clang_format
 
 EXTENSION_PATTERN = (r"^.*\.(?:cpp|cc|c\+\+|cxx|cppm|ccm|cxxm|c\+\+m|c|cl|h|hh|hpp"
@@ -38,6 +38,9 @@ def reformat_change(gerrit_url:str, change_id: int | str):
             continue
         if f.patch_contents is None:
             logger.info("Skipping %s because the file is deleted in the patch" % f.filename)
+            continue
+        if len(f.patch_segments) == 0:
+            logger.info("Skipping %s because the changes in the patch are only deletions" % f.filename)
             continue
         segments = []
         for segment in f.patch_segments:
