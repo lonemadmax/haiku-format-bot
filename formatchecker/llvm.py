@@ -19,9 +19,7 @@ import subprocess
 from io import StringIO
 from typing import Optional, Iterator
 
-FORMAT_COMMAND = 'clang-format-16'
-EXTENSION_PATTERN = (r".*\.(?:cpp|cc|c\+\+|cxx|cppm|ccm|cxxm|c\+\+m|c|cl|h|hh|hpp"
-                     r"|hxx|m|mm|inc|js|ts|proto|protodevel|java|cs|json|s?vh?)")
+FORMAT_COMMAND = 'haiku-format'
 
 
 def parse_diff_segments(diff: Iterator[str]) -> dict[str, list[tuple[int, Optional[int], int, Optional[int]]]]:

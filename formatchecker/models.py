@@ -234,7 +234,7 @@ class FixReplacementInfo:
 class FixSuggestion:
     """https://review.haiku-os.org/Documentation/rest-api-changes.html#fix-suggestion-info"""
     description: str
-    replacements = list[FixReplacementInfo]
+    replacements: list[FixReplacementInfo]
     fix_id: str | None = None
 
 
