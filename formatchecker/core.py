@@ -17,7 +17,7 @@ import re
 import sys
 
 from .gerrit import Context
-from .models import Change, ReviewInput, FixSuggestion, FixReplacementInfo, CommentRange, RobotCommentInput
+from .models import Change, ReviewInput, FixSuggestion, FixReplacementInfo, CommentRange, CommentInput
 from .llvm import run_clang_format
 
 EXTENSION_PATTERN = (r"^.*\.(?:cpp|cc|c\+\+|cxx|cppm|ccm|cxxm|c\+\+m|c|cl|h|hh|hpp"
@@ -59,24 +59,21 @@ def reformat_change(gerrit_url:str, change_id: int | str):
 
 def _change_to_review_input(change: Change) -> ReviewInput:
     """Internal function that converts a change into a ReviewInput object that can be pushed to Gerrit"""
-    comments: dict[str, list[RobotCommentInput]] = {}
+    comments: dict[str, list[CommentInput]] = {}
     run_id = str(datetime.datetime.now())
     for f in change.files:
         if f.formatted_contents is None or len(f.format_segments) == 0:
             continue
-        suggestions = []
         for segment in f.format_segments:
             end = segment.end
             if end is None:
                 # Insertion, TODO: maybe add the original line to the start contents too?
                 end = segment.start
-            replacement_info = FixReplacementInfo(f.filename, CommentRange(
-                segment.start, 0, end, len(f.patch_contents[end])
-            ), "".join(segment.formatted_content))
-            suggestions.append(FixSuggestion("Suggestion from `haiku-format`", [replacement_info]))
-        comments.setdefault(f.filename, []).extend([RobotCommentInput(
-            f.filename, "Experimental `haiku-format` bot", run_id, fix_suggestions=suggestions
-        )])
+            range = CommentRange(segment.start, 0, end, len(f.patch_contents[end]))
+            message = "Suggestion from `haiku-format`:\n```c++\n%s\n```" % "".join(segment.formatted_content)
+            comments.setdefault(f.filename, []).extend([CommentInput(
+                message=message, range=range
+            )])
 
     if len(comments) == 0:
         message = "Experimental `haiku-format` bot: no formatting changes suggested for this commit."
@@ -87,7 +84,7 @@ def _change_to_review_input(change: Change) -> ReviewInput:
                    "of classes.\n\nYou can see and apply the suggestions by running `haiku-format` in your local "
                    "repository.")
 
-    return ReviewInput(message=message, robot_comments=comments)
+    return ReviewInput(message=message, comments=comments)
 
 
 def _review_input_as_pretty_json(input: ReviewInput):
