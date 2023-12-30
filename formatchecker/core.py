@@ -50,7 +50,11 @@ def reformat_change(gerrit_url:str, change_id: int | str):
             logger.info("%s: %i segment(s) reformatted" % (f.filename, len(f.format_segments)))
 
     review_input = _change_to_review_input(change)
-    _review_input_as_pretty_json(review_input)
+    output = _review_input_as_pretty_json(review_input)
+    with open("review.json", "wt") as f:
+        f.write(output)
+    url = "%sa/changes/%s/revisions/current/review" % (gerrit_url, change_id)
+    logger.info("POST the contents of review.json to: %s", url)
 
 
 def _change_to_review_input(change: Change) -> ReviewInput:
@@ -105,7 +109,7 @@ def _review_input_as_pretty_json(input: ReviewInput):
 
     d = dataclasses.asdict(input)
     remove_empty_value(d)
-    print(json.dumps(d, indent=4))
+    return json.dumps(d, indent=4)
 
 
 if __name__ == "__main__":
