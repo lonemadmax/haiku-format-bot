@@ -67,12 +67,14 @@ def _change_to_review_input(change: Change) -> ReviewInput:
         for segment in f.format_segments:
             end = segment.end
             if end is None:
-                # Insertion, TODO: maybe add the original line to the start contents too?
                 end = segment.start
-            range = CommentRange(segment.start, 0, end, len(f.patch_contents[end]))
+            # As per the documentation, set the end point to character 0 of the next line to select all lines
+            # between start_line and end_line (excluding any content of end_line)
+            # https://review.haiku-os.org/Documentation/rest-api-changes.html#comment-range
+            comment_range = CommentRange(segment.start, 0, end + 1, 0)
             message = "Suggestion from `haiku-format`:\n```c++\n%s\n```" % "".join(segment.formatted_content)
             comments.setdefault(f.filename, []).extend([CommentInput(
-                message=message, range=range
+                message=message, range=comment_range
             )])
 
     if len(comments) == 0:
