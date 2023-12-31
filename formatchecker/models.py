@@ -22,8 +22,23 @@ class Segment:
     If the end is None, then the segment indicates an insertion point at the start line.
     """
     def __init__(self, start: int, end: int | None):
-        self.start = start
-        self.end = end
+        if start < 1:
+            raise ValueError("Start value must be 1 or higher")
+        if end is not None:
+            if end < 1:
+                raise ValueError("End value must be 1 or higher")
+            if end < start:
+                raise ValueError("End value must be equal to or higher than start value")
+        self._start = start
+        self._end = end
+
+    @property
+    def start(self) -> int:
+        return self._start
+
+    @property
+    def end(self) -> int | None:
+        return self._end
 
     def format_range(self) -> str:
         """Format the segment as a range. If the segment is not a range but an insertion point,
@@ -82,7 +97,8 @@ class FormatSegment(Segment):
                 operation = "(modification)"
             case ReformatType.DELETION:
                 operation = "(deletion)"
-
+            case _:
+                raise RuntimeError("Unsupported operation: %s", self.reformat_type)
         return "%s %s" % (super().__repr__(), operation)
 
 
