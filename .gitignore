@@ -1,6 +1,7 @@
 .idea/
 
-# Byte-compiled / optimized / DLL files
+# Byte-compiled files
 __pycache__/
 
+# Test framework
 _trial_temp
