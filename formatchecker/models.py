@@ -64,8 +64,20 @@ class ReformatType(Enum):
 class FormatSegment(Segment):
     """Represents a reformatted segment. The segment can be """
     def __init__(self, start: int, end: int | None, formatted_content: list[str]):
+        if end is None and len(formatted_content) == 0:
+            raise ValueError(
+                "When creating an insertion segment (where end is None), formatted_content must have 1 or more elements"
+            )
+
         super().__init__(start, end)
-        self.formatted_content = formatted_content
+        self._formatted_content = formatted_content
+
+    @property
+    def formatted_content(self):
+        """Content that replaces the existing content at the range of this segment. If the value is an empty list, it
+        means it is a deletion segment.
+        """
+        return self._formatted_content
 
     @property
     def reformat_type(self) -> ReformatType:

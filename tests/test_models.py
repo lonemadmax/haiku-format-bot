@@ -8,7 +8,7 @@
 
 import unittest
 
-from formatchecker.models import Segment
+from formatchecker.models import FormatSegment, Segment, ReformatType
 
 
 class SegmentTest(unittest.TestCase):
@@ -37,3 +37,32 @@ class SegmentTest(unittest.TestCase):
         # Invalid range
         s = Segment(1, None)
         self.assertRaises(ValueError, s.format_range)
+
+
+class FormatSegmentTest(unittest.TestCase):
+    def test_reformat_type(self):
+        content = ["line1\n", "line2\n"]
+
+        # Valid insert segment
+        f = FormatSegment(15, None, content)
+        self.assertEqual(f.start, 15)
+        self.assertIsNone(f.end)
+        self.assertEqual(f.formatted_content, content)
+        self.assertEqual(f.reformat_type, ReformatType.INSERTION)
+
+        # Invalid insert segment
+        self.assertRaises(ValueError, FormatSegment, 15, None, [])
+
+        # Valid modification segment
+        f = FormatSegment(15, 20, content)
+        self.assertEqual(f.start, 15)
+        self.assertEqual(f.end, 20)
+        self.assertEqual(f.formatted_content, content)
+        self.assertEqual(f.reformat_type, ReformatType.MODIFICATION)
+
+        # Valid deletion segment
+        f = FormatSegment(15,20, [])
+        self.assertEqual(f.start, 15)
+        self.assertEqual(f.end, 20)
+        self.assertEqual(f.formatted_content, [])
+        self.assertEqual(f.reformat_type, ReformatType.DELETION)
