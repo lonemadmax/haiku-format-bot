@@ -48,6 +48,11 @@ class Segment:
             raise ValueError("Segment does not have an endpoint and is not a range")
         return "%i:%i" % (self.start, self.end)
 
+    def __eq__(self, other):
+        if isinstance(other, Segment):
+            return self.start == other.start and self.end == other.end
+        return False
+
     def __repr__(self):
         try:
             return "Segment %s" % self.format_range()
@@ -101,6 +106,11 @@ class FormatSegment(Segment):
         else:
             return ReformatType.MODIFICATION
 
+    def __eq__(self, other):
+        if isinstance(other, FormatSegment):
+            return super(Segment).__eq__(other) and self.formatted_content == other.formatted_content
+        return False
+
     def __repr__(self):
         match self.reformat_type:
             case ReformatType.INSERTION:
@@ -116,7 +126,7 @@ class FormatSegment(Segment):
 
 class File:
     """Represents a file in a Gerrit change, including its content"""
-    def __init__(self, filename: str, base: list[str] | None, patch: list[str] | None):
+    def __init__(self, filename: str, base: list[str] | None = None, patch: list[str] | None = None):
         # set up internal variables used by the property getters/setters
         self._patch_segments: list[Segment] = []
 
@@ -135,7 +145,6 @@ class File:
     @base_contents.setter
     def base_contents(self, base: list[str] | None):
         self._base_contents = base
-        print("base %s patch %s" % (self._base_contents, self._patch_contents))
         self._calculate_patch_segments()
 
     @property
