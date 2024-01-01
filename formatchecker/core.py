@@ -80,7 +80,7 @@ def _change_to_review_input(change: Change) -> ReviewInput:
             # https://review.haiku-os.org/Documentation/rest-api-changes.html#comment-range
             end += 1
             comment_range = CommentRange(segment.start, 0, end, 0)
-            if ReformatType.DELETION:
+            if segment.reformat_type == ReformatType.DELETION:
                 message = "Suggestion from `haiku-format` is to remove this line/these lines."
             else:
                 message = ("Suggestion from `haiku-format` (%s):\n```c++\n%s```"
