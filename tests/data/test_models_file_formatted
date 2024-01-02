@@ -85,11 +85,11 @@ TClockWindow::_InitWindow()
 
 			BRect frame = Frame();
 			frame.InsetBy(-4, -4);
-			// it's not visible so reposition. I'm not going to get
-			// fancy here, just place in the default location
 			if (!frame.Intersects(BScreen(this).Frame()))
 				MoveTo(100, 100);
 		}
 	}
 }
+
+This line is inserted.
 

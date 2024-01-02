@@ -83,6 +83,15 @@ class FileTest(unittest.TestCase):
     _patch_segments = [Segment(25, 25), Segment(37,49), Segment(51, 52),
                          Segment(61, 61), Segment(83, 83), Segment(85, 85)]
 
+    # Helpers
+    @classmethod
+    def get_patch_segments(cls, f: File) -> list[Segment]:
+        return f.patch_segments
+
+    @classmethod
+    def get_format_segments(cls, f: File) -> list[Segment]:
+        return f.format_segments
+
     @classmethod
     def setUpClass(cls):
         data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
@@ -90,38 +99,43 @@ class FileTest(unittest.TestCase):
             cls._base_contents = f.readlines()
         with open(os.path.join(data_path, "test_models_file_patch")) as f:
             cls._patch_contents = f.readlines()
+        with open(os.path.join(data_path, "test_models_file_formatted")) as f:
+            cls._formatted_contents = f.readlines()
+        # set up the format segments
+        cls._format_segments = [
+            FormatSegment(25, 25, cls._formatted_contents[24:25]),
+            FormatSegment(37, 49, cls._formatted_contents[36:48]),
+            FormatSegment(51, 52, cls._formatted_contents[49:52]),
+            FormatSegment(88, 89, []),
+            FormatSegment(95, None, cls._formatted_contents[93:95])
+        ]
 
     def test_initialization(self):
         # Helper functions to check that properties raise exceptions
-        def get_patch_segments(f: File) -> list[Segment]:
-            return f.patch_segments
-
-        def get_format_segments(f: File) -> list[Segment]:
-            return f.format_segments
 
         # Create object with no content
         f = File("filename")
         self.assertIsNone(f.base_contents)
         self.assertIsNone(f.patch_contents)
         self.assertIsNone(f.formatted_contents)
-        self.assertRaises(RuntimeError, get_patch_segments, f)
-        self.assertRaises(RuntimeError, get_format_segments, f)
+        self.assertRaises(RuntimeError, self.get_patch_segments, f)
+        self.assertRaises(RuntimeError, self.get_format_segments, f)
 
         # Create object with only base contents
         f = File("filename", self._base_contents)
         self.assertEqual(f.base_contents, self._base_contents)
         self.assertIsNone(f.patch_contents)
         self.assertIsNone(f.formatted_contents)
-        self.assertRaises(RuntimeError, get_patch_segments, f)
-        self.assertRaises(RuntimeError, get_format_segments, f)
+        self.assertRaises(RuntimeError, self.get_patch_segments, f)
+        self.assertRaises(RuntimeError, self.get_format_segments, f)
 
         # Create object with only patched contents
         f = File("filename", patch=self._patch_contents)
         self.assertIsNone(f.base_contents)
         self.assertEqual(f.patch_contents, self._patch_contents)
         self.assertIsNone(f.formatted_contents)
-        self.assertRaises(RuntimeError, get_patch_segments, f)
-        self.assertRaises(RuntimeError, get_format_segments, f)
+        self.assertRaises(RuntimeError, self.get_patch_segments, f)
+        self.assertRaises(RuntimeError, self.get_format_segments, f)
 
         # Create object with base and patch contents
         f = File("filename", self._base_contents, self._patch_contents)
@@ -129,4 +143,52 @@ class FileTest(unittest.TestCase):
         self.assertEqual(f.patch_contents, self._patch_contents)
         self.assertIsNone(f.formatted_contents)
         self.assertEqual(f.patch_segments, self._patch_segments)
-        self.assertRaises(RuntimeError, get_format_segments, f)
+        self.assertRaises(RuntimeError, self.get_format_segments, f)
+
+    def test_content_reset(self):
+        """Validate that a File object can be set/reset various times, and that triggers a recalculation of segments"""
+        f = File("filename", self._base_contents, self._patch_contents)
+        self.assertEqual(f.base_contents, self._base_contents)
+        self.assertEqual(f.patch_contents, self._patch_contents)
+        self.assertIsNone(f.formatted_contents)
+        self.assertGreater(len(f.patch_segments), 0)
+        self.assertRaises(RuntimeError, self.get_format_segments, f)
+
+        # Add formatted segments
+        f.formatted_contents = self._formatted_contents
+        self.assertEqual(f.base_contents, self._base_contents)
+        self.assertEqual(f.patch_contents, self._patch_contents)
+        self.assertEqual(f.formatted_contents, self._formatted_contents)
+        self.assertGreater(len(f.patch_segments), 0)
+        self.assertGreater(len(f.format_segments), 0)
+
+        # Remove patched contents (should reset all segments)
+        f.patch_contents = None
+        self.assertEqual(f.base_contents, self._base_contents)
+        self.assertEqual(f.patch_contents, None)
+        self.assertEqual(f.formatted_contents, self._formatted_contents)
+        self.assertRaises(RuntimeError, self.get_patch_segments, f)
+        self.assertRaises(RuntimeError, self.get_format_segments, f)
+
+        # Validate that setting empty (patch) content is also valid. If patch contents is empty, it is a deletion only
+        # so that means that there will be 0 patch segments.
+        f.patch_contents = []
+        self.assertEqual(f.base_contents, self._base_contents)
+        self.assertEqual(f.patch_contents, [])
+        self.assertEqual(f.formatted_contents, self._formatted_contents)
+        self.assertEqual(len(f.patch_segments), 0)
+        self.assertGreater(len(f.format_segments), 0)
+
+        # Validate that removing formatted_contents will remove format_segments
+        f.formatted_contents = None
+        self.assertEqual(f.base_contents, self._base_contents)
+        self.assertEqual(f.patch_contents, [])
+        self.assertIsNone(f.formatted_contents)
+        self.assertEqual(len(f.patch_segments), 0)
+        self.assertRaises(RuntimeError, self.get_format_segments, f)
+
+    def test_formatted_segments(self):
+        """This test determines if the File class correctly determines the formatted segments"""
+        f = File("filename", self._base_contents, self._patch_contents)
+        f.formatted_contents = self._formatted_contents
+        self.assertEqual(f.format_segments, self._format_segments)

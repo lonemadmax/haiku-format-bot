@@ -108,7 +108,7 @@ class FormatSegment(Segment):
 
     def __eq__(self, other):
         if isinstance(other, FormatSegment):
-            return super(Segment).__eq__(other) and self.formatted_content == other.formatted_content
+            return super().__eq__(other) and self.formatted_content == other.formatted_content
         return False
 
     def __repr__(self):
