@@ -63,7 +63,6 @@ def reformat_change(gerrit_url:str, change_id: int | str):
 def _change_to_review_input(change: Change) -> ReviewInput:
     """Internal function that converts a change into a ReviewInput object that can be pushed to Gerrit"""
     comments: dict[str, list[CommentInput]] = {}
-    run_id = str(datetime.datetime.now())
     for f in change.files:
         if f.formatted_contents is None or len(f.format_segments) == 0:
             continue
@@ -96,7 +95,7 @@ def _change_to_review_input(change: Change) -> ReviewInput:
                    "experimental and the suggestions may not be correct. There is a known issue with changes "
                    "in header files: `haiku-format` does not yet correctly output the column layout of the contents "
                    "of classes.\n\nYou can see and apply the suggestions by running `haiku-format` in your local "
-                   "repository. For example, if in your local checkout this change is applied to a local checkout, you"
+                   "repository. For example, if in your local checkout this change is applied to a local checkout, you "
                    "can use the following command to automatically reformat:\n```\ngit-haiku-format HEAD~\n```")
 
     return ReviewInput(message=message, comments=comments)
