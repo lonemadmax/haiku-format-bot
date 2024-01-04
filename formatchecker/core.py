@@ -10,7 +10,6 @@ This module contains the core high-level objects and functions that are used to 
 reformat it, and publish those changes back to Gerrit.
 """
 import dataclasses
-import datetime
 import json
 import logging
 import re
@@ -67,6 +66,7 @@ def _change_to_review_input(change: Change) -> ReviewInput:
         if f.formatted_contents is None or len(f.format_segments) == 0:
             continue
         for segment in f.format_segments:
+            print("XXX segment in %s: %s %s" % (f.filename, str(segment.start), str(segment.end)))
             end = segment.end
             match segment.reformat_type:
                 case ReformatType.INSERTION:
@@ -77,7 +77,10 @@ def _change_to_review_input(change: Change) -> ReviewInput:
             # As per the documentation, set the end point to character 0 of the next line to select all lines
             # between start_line and end_line (excluding any content of end_line)
             # https://review.haiku-os.org/Documentation/rest-api-changes.html#comment-range
-            end += 1
+            # However, this does not seem to work with Gerrit 3.7.1 as it seems to select the entirety of end_line
+            # as well. So comment this out, put keeping a note just in case this is a bug in this particular Gerrit
+            # version and it needs to come back in the future.
+            # end += 1
             comment_range = CommentRange(segment.start, 0, end, 0)
             if segment.reformat_type == ReformatType.DELETION:
                 message = "Suggestion from `haiku-format` is to remove this line/these lines."
