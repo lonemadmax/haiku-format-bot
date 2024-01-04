@@ -1,0 +1,42 @@
+[
+{
+"id": "haiku~dev%2Fnetservices~I0dadd1dfd3fb36256bd6f4a2530dbbe12afefce5",
+"project": "haiku",
+"branch": "dev/netservices",
+"hashtags": [],
+"change_id": "I0dadd1dfd3fb36256bd6f4a2530dbbe12afefce5",
+"subject": "[WIP] HaikuDepot: Switch to libnetservices2.a",
+"status": "NEW",
+"created": "2022-09-24 08:52:19.000000000",
+"updated": "2023-12-30 09:16:30.000000000",
+"submit_type": "REBASE_ALWAYS",
+"insertions": 365,
+"deletions": 521,
+"total_comment_count": 2,
+"unresolved_comment_count": 1,
+"work_in_progress": true,
+"has_review_started": false,
+"meta_rev_id": "a83b7642bbd3e599ecd9496d47744508e7ed1746",
+"_number": 5692,
+"owner": {
+    "_account_id": 6000112
+},
+"requirements": [],
+"submit_records": [
+    {
+        "rule_name": "gerrit~DefaultSubmitRule",
+        "status": "NOT_READY",
+        "labels": [
+            {
+                "label": "Code-Review",
+                "status": "NEED"
+            },
+            {
+                "label": "Verified",
+                "status": "MAY"
+            }
+        ]
+    }
+]
+}
+]

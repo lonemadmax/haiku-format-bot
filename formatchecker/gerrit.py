@@ -1,12 +1,14 @@
 #
-# Copyright 2023 Haiku, Inc. All rights reserved.
+# Copyright 2023-2024 Haiku, Inc. All rights reserved.
 # Distributed under the terms of the MIT License.
 #
 # Authors:
 #  Niels Sascha Reedijk, niels.reedijk@gmail.com
 #
 import json
+import logging
 from io import StringIO
+from typing import Any
 
 import requests
 from base64 import b64decode
@@ -19,12 +21,10 @@ class Context:
     """Class for sending/receiving with a Gerrit instance"""
     def __init__(self, url: str):
         """Set the Gerrit instance to a URL. A basic test is performed to make sure it is valid."""
-        response = requests.get(urljoin(url, "changes/"))
-        if response.status_code != 200:
-            raise RuntimeError("Invalid response from %s: %i (expected 200)" % (url, response.status_code))
-        if not response.text.startswith(")]}'"):
-            raise RuntimeError("Invalid response from %s: content does not start with marker" % (url))
         self._gerrit_url = url
+        self._logger = logging.getLogger("gerrit")
+        response = self._get("changes/", params=None)
+        self._logger.info("Context for gerrit instance: %s" % str(url))
 
     def get_change(self, change_id: str) -> Change:
         """Get a change including its details from Gerrit"""
@@ -57,11 +57,17 @@ class Context:
 
     def get_change_id_from_number(self, change_number: int):
         """Convert a change number (common in the URL) into a change id"""
-        response = requests.get(urljoin(self._gerrit_url, "changes/"), params={"q": "change:%i" % change_number})
+        changes = self._get("changes/", params={"q": "change:%i" % change_number})
+        if len(changes) == 0:
+            raise ValueError("Invalid change number")
+        return changes[0]["id"]
+
+    def _get(self, url: str, params) -> list[Any] | dict[str, Any]:
+        url = urljoin(self._gerrit_url, url)
+        response = requests.get(url, params=params)
+        self._logger.debug("Request to %s: status: %i" % (url, response.status_code))
         if response.status_code != 200:
             raise RuntimeError("Invalid response from %s: %i (expected 200)" % (response.url, response.status_code))
         if not response.text.startswith(")]}'"):
             raise RuntimeError("Invalid response from %s: content does not start with marker" % response.url)
-        response_dict: dict = json.loads(response.text[4:])
-        # The change list is always a list with one response.
-        return response_dict[0]["id"]
+        return json.loads(response.text[4:])
