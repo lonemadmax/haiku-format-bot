@@ -23,14 +23,15 @@ EXTENSION_PATTERN = (r"^.*\.(?:cpp|cc|c\+\+|cxx|cppm|ccm|cxxm|c\+\+m|c|cl|h|hh|h
                      r"|hxx|m|mm|inc|js|ts|proto|protodevel|java|cs|json|s?vh?)$")
 
 
-def reformat_change(gerrit_url:str, change_id: int | str):
+def reformat_change(gerrit_url:str, change_id: int | str, revision_id: str = "current"):
     """Function to fetch a change, reformat it, and publish the improvements to Gerrit"""
     logger = logging.getLogger("core")
+    logger.info("Fetching change details for %s" % str(change_id))
     ctx = Context(gerrit_url)
     if isinstance(change_id, int):
         # convert a change number to an id
-        change_id = ctx.get_change_id_from_number(change_id)
-    change = ctx.get_change(change_id)
+        change_id, revision_id = ctx.get_change_and_revision_from_number(change_id)
+    change = ctx.get_change(change_id, revision_id)
     for f in change.files:
         if not re.match(EXTENSION_PATTERN, f.filename, re.IGNORECASE):
             logger.info("Ignoring %s because it does not seem to be a file that `clang-format` can handle" % f.filename)
@@ -55,7 +56,7 @@ def reformat_change(gerrit_url:str, change_id: int | str):
     output = _review_input_as_pretty_json(review_input)
     with open("review.json", "wt") as f:
         f.write(output)
-    url = "%sa/changes/%s/revisions/current/review" % (gerrit_url, change_id)
+    url = "%sa/changes/%s/revisions/%s/review" % (gerrit_url, change_id, revision_id)
     logger.info("POST the contents of review.json to: %s", url)
 
 

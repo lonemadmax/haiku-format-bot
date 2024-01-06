@@ -237,12 +237,13 @@ class File:
 
 class Change:
     """Represents a change in Gerrit, including a list of files"""
-    def __init__(self, change_id: str, files: list[File]):
+    def __init__(self, change_id: str, files: list[File], revision:str = "current"):
         self.change_id = change_id
         self.files = files
+        self.revision = revision
 
     def __repr__(self):
-        return "Gerrit change %s" % self.change_id
+        return "Gerrit change %s (revision: %s)" % (self.change_id, self.revision)
 
 
 # Gerrit specific data models

@@ -21,6 +21,24 @@
 "owner": {
     "_account_id": 6000112
 },
+"current_revision": "701299b",
+"revisions": {
+    "701299b": {
+        "kind": "TRIVIAL_REBASE",
+        "_number": 20,
+        "created": "2024-01-05 20:12:35.000000000",
+        "uploader": {
+            "_account_id": 894948
+        },
+        "ref": "refs/changes/90/7290/20",
+        "fetch": {
+            "anonymous http": {
+                "url": "https://review.haiku-os.org/haiku",
+                "ref": "refs/changes/90/7290/20"
+            }
+        }
+    }
+},
 "requirements": [],
 "submit_records": [
     {

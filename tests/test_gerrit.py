@@ -62,9 +62,9 @@ class ContextTest(unittest.TestCase):
         cls._context = Context("https://test-gerrit/")
 
     def test_get_change_id_from_number(self):
-        self.assertEqual(self._context.get_change_id_from_number(5692),
-                         "haiku~dev%2Fnetservices~I0dadd1dfd3fb36256bd6f4a2530dbbe12afefce5")
-        self.assertRaises(ValueError, self._context.get_change_id_from_number, 19000)
+        self.assertEqual(self._context.get_change_and_revision_from_number(5692),
+                         ("haiku~dev%2Fnetservices~I0dadd1dfd3fb36256bd6f4a2530dbbe12afefce5", "701299b"))
+        self.assertRaises(ValueError, self._context.get_change_and_revision_from_number, 19000)
 
     def test_get_change(self):
         change = self._context.get_change("test_get_change")

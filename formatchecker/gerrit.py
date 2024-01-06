@@ -26,9 +26,9 @@ class Context:
         _ = self._get("changes/")
         self._logger.info("Context for gerrit instance: %s" % str(url))
 
-    def get_change(self, change_id: str) -> Change:
-        """Get a change including its details from Gerrit"""
-        current_revision_url = "changes/%s/revisions/current/" % change_id
+    def get_change(self, change_id: str, revision_id: str = "current") -> Change:
+        """Get a change including its details from Gerrit. Optionally it is possible to get a specific revision."""
+        current_revision_url = "changes/%s/revisions/%s/" % (change_id, revision_id)
         change_dict: dict = self._get(urljoin(current_revision_url, "files"))
         files = []
         for filename in change_dict.keys():
@@ -48,12 +48,13 @@ class Context:
             files.append(File(filename, base_content, patch_content))
         return Change(change_id, files)
 
-    def get_change_id_from_number(self, change_number: int):
-        """Convert a change number (common in the URL) into a change id"""
-        changes = self._get("changes/", params={"q": "change:%i" % change_number})
+    def get_change_and_revision_from_number(self, change_number: int) -> tuple[str, str]:
+        """Retrieve the change id and latest revision id from a change number"""
+        changes: list[Any] = self._get("changes/",
+                                       params={"q": "change:%i" % change_number, "o": "CURRENT_REVISION"})
         if len(changes) == 0:
             raise ValueError("Invalid change number")
-        return changes[0]["id"]
+        return changes[0]["id"], changes[0]["current_revision"]
 
     def _get(self, url: str, params = None) -> list[Any] | dict[str, Any] | str:
         url = urljoin(self._gerrit_url, url)
