@@ -66,7 +66,6 @@ def _change_to_review_input(change: Change) -> ReviewInput:
         if f.formatted_contents is None or len(f.format_segments) == 0:
             continue
         for segment in f.format_segments:
-            print("XXX segment in %s: %s %s" % (f.filename, str(segment.start), str(segment.end)))
             end = segment.end
             match segment.reformat_type:
                 case ReformatType.INSERTION:

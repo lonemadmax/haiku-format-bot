@@ -23,36 +23,29 @@ class Context:
         """Set the Gerrit instance to a URL. A basic test is performed to make sure it is valid."""
         self._gerrit_url = url
         self._logger = logging.getLogger("gerrit")
-        response = self._get("changes/", params=None)
+        _ = self._get("changes/")
         self._logger.info("Context for gerrit instance: %s" % str(url))
 
     def get_change(self, change_id: str) -> Change:
         """Get a change including its details from Gerrit"""
-        current_revision_url = urljoin(self._gerrit_url, "changes/%s/revisions/current/" % change_id)
-        response = requests.get(urljoin(current_revision_url, "files"))
-        if response.status_code != 200:
-            raise RuntimeError("Invalid response from %s: %i (expected 200)" % (response.url, response.status_code))
-        change_dict: dict = json.loads(response.text[4:])
+        current_revision_url = "changes/%s/revisions/current/" % change_id
+        change_dict: dict = self._get(urljoin(current_revision_url, "files"))
         files = []
         for filename in change_dict.keys():
             status = change_dict[filename].get("status", "M")
             file_get_url = urljoin(current_revision_url, "files/%s/content" % quote(filename, safe=''))
             # get the contents of the current patch version of the file
             if status != "D":
-                response = requests.get(file_get_url)
-                if response.status_code != 200:
-                    raise RuntimeError("Invalid response from %s: %i (expected 200)" % (response.url, response.status_code))
-                patch_content = b64decode(response.text).decode("utf-8")
+                patch_content = self._get(file_get_url)
+                patch_content = StringIO(patch_content).readlines()
             else:
-                patch_content = ""
+                patch_content = None
             if status != "A":
-                response = requests.get(file_get_url, params={"parent": "1"})
-                if response.status_code != 200:
-                    raise RuntimeError("Invalid response from %s: %i (expected 200)" % (response.url, response.status_code))
-                base_content = b64decode(response.text).decode("utf-8")
+                base_content = self._get(file_get_url, params={"parent": "1"})
+                base_content = StringIO(base_content).readlines()
             else:
-                base_content = ""
-            files.append(File(filename, StringIO(base_content).readlines(), StringIO(patch_content).readlines()))
+                base_content = None
+            files.append(File(filename, base_content, patch_content))
         return Change(change_id, files)
 
     def get_change_id_from_number(self, change_number: int):
@@ -62,12 +55,18 @@ class Context:
             raise ValueError("Invalid change number")
         return changes[0]["id"]
 
-    def _get(self, url: str, params) -> list[Any] | dict[str, Any]:
+    def _get(self, url: str, params = None) -> list[Any] | dict[str, Any] | str:
         url = urljoin(self._gerrit_url, url)
         response = requests.get(url, params=params)
         self._logger.debug("Request to %s: status: %i" % (url, response.status_code))
         if response.status_code != 200:
             raise RuntimeError("Invalid response from %s: %i (expected 200)" % (response.url, response.status_code))
-        if not response.text.startswith(")]}'"):
-            raise RuntimeError("Invalid response from %s: content does not start with marker" % response.url)
-        return json.loads(response.text[4:])
+        if response.headers['Content-Type'].startswith("application/json"):
+            if not response.text.startswith(")]}'"):
+                raise RuntimeError("Invalid response from %s: content does not start with marker" % response.url)
+            return json.loads(response.text[4:])
+        elif (response.headers['Content-Type'].startswith("text/plain")
+              and response.headers["X-FYI-Content-Encoding"] == "base64"):
+            return b64decode(response.text).decode("utf-8")
+        else:
+            raise RuntimeError("Invalid content type: %s" % response.headers['Content-Type'])

@@ -1,0 +1,20 @@
+{
+"/COMMIT_MSG": {
+"status": "A",
+"lines_inserted": 17,
+"size_delta": 720,
+"size": 720
+},
+"src/file_implicitly_modified": {
+"lines_inserted": 2,
+"lines_deleted": 3,
+"size_delta": -30,
+"size": 9913
+},
+"src/file_deleted": {
+"status": "D",
+"lines_deleted": 51,
+"size_delta": -967,
+"size": 0
+}
+}
