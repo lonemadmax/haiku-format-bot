@@ -1,5 +1,5 @@
 #
-# Copyright 2023 Haiku, Inc. All rights reserved.
+# Copyright 2023-2024 Haiku, Inc. All rights reserved.
 # Distributed under the terms of the MIT License.
 #
 # Authors:
@@ -9,7 +9,6 @@
 This module contains the core high-level objects and functions that are used to fetch a change,
 reformat it, and publish those changes back to Gerrit.
 """
-import dataclasses
 import json
 import logging
 import re
@@ -23,8 +22,10 @@ EXTENSION_PATTERN = (r"^.*\.(?:cpp|cc|c\+\+|cxx|cppm|ccm|cxxm|c\+\+m|c|cl|h|hh|h
                      r"|hxx|m|mm|inc|js|ts|proto|protodevel|java|cs|json|s?vh?)$")
 
 
-def reformat_change(gerrit_url:str, change_id: int | str, revision_id: str = "current"):
-    """Function to fetch a change, reformat it, and publish the improvements to Gerrit"""
+def reformat_change(gerrit_url:str, change_id: int | str, revision_id: str = "current", submit: bool = False):
+    """Function to fetch a change, reformat it.
+    The function returns a dict that contains the data that can be posted to the review endpoint on Gerrit.
+    """
     logger = logging.getLogger("core")
     logger.info("Fetching change details for %s" % str(change_id))
     ctx = Context(gerrit_url)
@@ -54,11 +55,15 @@ def reformat_change(gerrit_url:str, change_id: int | str, revision_id: str = "cu
 
     review_input = _change_to_review_input(change)
     # Convert review input into json
-    output = strip_empty_values_from_input_dict(review_input)
-    with open("review.json", "wt") as f:
-        f.write(json.dumps(output, indent=4))
-    url = "%sa/changes/%s/revisions/%s/review" % (gerrit_url, change_id, revision_id)
-    logger.info("POST the contents of review.json to: %s", url)
+    if submit:
+        ctx.publish_review(change_id, review_input, revision_id)
+        logger.info("The review has been submitted to Gerrit")
+    else:
+        output = strip_empty_values_from_input_dict(review_input)
+        with open("review.json", "wt") as f:
+            f.write(json.dumps(output, indent=4))
+        url = "%sa/changes/%s/revisions/%s/review" % (gerrit_url, change_id, revision_id)
+        logger.info("POST the contents of review.json to: %s", url)
 
 
 def _change_to_review_input(change: Change) -> ReviewInput:
@@ -110,7 +115,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="format-check",
         description="Checks the formatting of a patch on Haiku's Gerrit instance and publishes reformats if necessary")
+    parser.add_argument('--submit', action="store_true", help="submit the review to gerrit")
     parser.add_argument('change_number', type=int)
     args = parser.parse_args()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-    reformat_change("https://review.haiku-os.org/", args.change_number)
+    reformat_change("https://review.haiku-os.org/", args.change_number, submit=args.submit)
