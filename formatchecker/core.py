@@ -16,7 +16,7 @@ import re
 import sys
 
 from .gerrit import Context
-from .models import Change, ReviewInput, CommentRange, CommentInput, ReformatType
+from .models import Change, ReviewInput, CommentRange, CommentInput, ReformatType, strip_empty_values_from_input_dict
 from .llvm import run_clang_format
 
 EXTENSION_PATTERN = (r"^.*\.(?:cpp|cc|c\+\+|cxx|cppm|ccm|cxxm|c\+\+m|c|cl|h|hh|hpp"
@@ -53,9 +53,10 @@ def reformat_change(gerrit_url:str, change_id: int | str, revision_id: str = "cu
             logger.info("%s: %i segment(s) reformatted" % (f.filename, len(f.format_segments)))
 
     review_input = _change_to_review_input(change)
-    output = _review_input_as_pretty_json(review_input)
+    # Convert review input into json
+    output = strip_empty_values_from_input_dict(review_input)
     with open("review.json", "wt") as f:
-        f.write(output)
+        f.write(json.dumps(output, indent=4))
     url = "%sa/changes/%s/revisions/%s/review" % (gerrit_url, change_id, revision_id)
     logger.info("POST the contents of review.json to: %s", url)
 
@@ -102,29 +103,6 @@ def _change_to_review_input(change: Change) -> ReviewInput:
                    "can use the following command to automatically reformat:\n```\ngit-haiku-format HEAD~\n```")
 
     return ReviewInput(message=message, comments=comments)
-
-
-def _review_input_as_pretty_json(input: ReviewInput):
-    """Internal function that converts a ReviewInput document into json that can be sent to Gerrit.
-    Since the ReviewInput is structured as a dataclass, it can be easily converted into a dict. If the Gerrit
-    API states something is an optional value, then the classes allow None. When generating the JSON, these unset
-    optional values will be filtered out (otherwise they will be sent added as null values in the JSON, which is
-    semantically different than an optional value).
-    """
-    def remove_empty_value(_d):
-        for key, value in list(_d.items()):
-            if isinstance(value, dict):
-                remove_empty_value(value)
-            elif isinstance(value, list):
-                for list_value in value:
-                    if isinstance(list_value, dict):
-                        remove_empty_value(list_value)
-            elif value is None:
-                del _d[key]
-
-    d = dataclasses.asdict(input)
-    remove_empty_value(d)
-    return json.dumps(d, indent=4)
 
 
 if __name__ == "__main__":

@@ -5,10 +5,13 @@
 # Authors:
 #  Niels Sascha Reedijk, niels.reedijk@gmail.com
 #
+import copy
+import dataclasses
 import os
 import unittest
+from typing import Any
 
-from formatchecker.models import FormatSegment, Segment, ReformatType, File
+from formatchecker.models import FormatSegment, Segment, ReformatType, File, strip_empty_values_from_input_dict
 
 
 class SegmentTest(unittest.TestCase):
@@ -192,3 +195,46 @@ class FileTest(unittest.TestCase):
         f = File("filename", self._base_contents, self._patch_contents)
         f.formatted_contents = self._formatted_contents
         self.assertEqual(f.format_segments, self._format_segments)
+
+
+class DictStripTest(unittest.TestCase):
+    @dataclasses.dataclass
+    class SimpleData:
+        field_with_value: int = 1
+        field_without_value: None = None
+
+    @dataclasses.dataclass
+    class ComplexData:
+        simple_field: int = 1
+        complex_list: list[Any|None] = dataclasses.field(default_factory=lambda: copy.copy(
+            [
+                "value1",
+                DictStripTest.SimpleData()
+            ]
+        ))
+        complex_dict: dict[str, Any | None] = dataclasses.field(default_factory=lambda: copy.copy(
+            {
+                "value1": "string",
+                "value2": DictStripTest.SimpleData(),
+                "value3": None
+            }
+        ))
+
+    def test_strip(self):
+        self.assertEqual(strip_empty_values_from_input_dict(DictStripTest.SimpleData()), {"field_with_value": 1})
+        self.assertEqual(strip_empty_values_from_input_dict(DictStripTest.ComplexData()),
+                         {
+                             "simple_field": 1,
+                             "complex_list": [
+                                 "value1",
+                                 {
+                                     "field_with_value": 1
+                                 }
+                             ],
+                             "complex_dict": {
+                                 "value1": "string",
+                                 "value2": {
+                                     "field_with_value": 1
+                                 }
+                             }
+                         })

@@ -8,9 +8,11 @@
 """
 This module contains the model classes that are shared between the various modules of this tool.
 """
+import dataclasses
 import difflib
 from dataclasses import dataclass
 from enum import Enum, StrEnum, auto
+from typing import Any
 
 from .llvm import parse_diff_segments
 
@@ -359,3 +361,26 @@ class ReviewInput:
     # add_to_attention_set = list[AttentionSetInput] | None
     # remove_from_attention_set = list[AttentionSetInput] | None
     ignore_automatic_attention_set_rules: bool | None = None
+
+
+# Utility function
+def strip_empty_values_from_input_dict(data) -> dict[str, Any]:
+    """Helper to post data to the Gerrit API. The models above allow setting None as a value, when the API documentation
+     states that something is an optional value. When generating the JSON, these unset
+    optional values will be filtered out (otherwise they will be sent added as null values in the JSON, which is
+    semantically different from an optional value).
+    """
+    def remove_empty_value(_d):
+        for key, value in list(_d.items()):
+            if isinstance(value, dict):
+                remove_empty_value(value)
+            elif isinstance(value, list):
+                for list_value in value:
+                    if isinstance(list_value, dict):
+                        remove_empty_value(list_value)
+            elif value is None:
+                del _d[key]
+
+    d = dataclasses.asdict(data)
+    remove_empty_value(d)
+    return d
