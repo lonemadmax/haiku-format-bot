@@ -40,12 +40,18 @@ def reformat_change(gerrit_url:str, change_id: int | str, revision_id: str = "cu
         if f.patch_contents is None:
             logger.info("Skipping %s because the file is deleted in the patch" % f.filename)
             continue
-        if len(f.patch_segments) == 0:
-            logger.info("Skipping %s because the changes in the patch are only deletions" % f.filename)
-            continue
-        segments = []
-        for segment in f.patch_segments:
-            segments.append(segment.format_range())
+        if f.base_contents is not None:
+            # Check if the file is a modified file (i.e. it has base and patch contents). If so, add the segments to a
+            # list.
+            if len(f.patch_segments) == 0:
+                logger.info("Skipping %s because the changes in the patch are only deletions" % f.filename)
+                continue
+            segments = []
+            for segment in f.patch_segments:
+                segments.append(segment.format_range())
+        else:
+            # The patched file is new, add an empty segment list so that haiku-format reformats it in its entirety.
+            segments = []
         reformatted_content = run_clang_format(f.patch_contents, segments)
         f.formatted_contents = reformatted_content
         if f.formatted_contents is None:
