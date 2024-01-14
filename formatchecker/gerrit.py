@@ -38,6 +38,8 @@ class Context:
         for filename in change_dict.keys():
             status = change_dict[filename].get("status", "M")
             file_get_url = urljoin(current_revision_url, "files/%s/content" % quote(filename, safe=''))
+            if status not in ["M", "D", "A"]:
+                raise RuntimeError("Unsupported file status change")
             # get the contents of the current patch version of the file
             if status != "D":
                 patch_content = self._get(file_get_url)
