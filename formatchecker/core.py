@@ -15,7 +15,8 @@ import re
 import sys
 
 from .gerrit import Context
-from .models import Change, ReviewInput, CommentRange, CommentInput, ReformatType, strip_empty_values_from_input_dict
+from .models import Change, ReviewInput, CommentRange, CommentInput, ReformatType, strip_empty_values_from_input_dict, \
+    NotifyEnum
 from .llvm import run_clang_format
 
 EXTENSION_PATTERN = (r"^.*\.(?:cpp|cc|c\+\+|cxx|cppm|ccm|cxxm|c\+\+m|c|cl|h|hh|hpp"
@@ -105,6 +106,7 @@ def _change_to_review_input(change: Change) -> ReviewInput:
 
     if len(comments) == 0:
         message = "Experimental `haiku-format` bot: no formatting changes suggested for this commit."
+        labels = {"Haiku-Format": +1}
     else:
         message = ("Experimental `haiku-format` bot: some formatting changes suggested.\nNote that this bot is "
                    "experimental and the suggestions may not be correct. There is a known issue with changes "
@@ -112,8 +114,9 @@ def _change_to_review_input(change: Change) -> ReviewInput:
                    "of classes.\n\nYou can see and apply the suggestions by running `haiku-format` in your local "
                    "repository. For example, if in your local checkout this change is applied to a local checkout, you "
                    "can use the following command to automatically reformat:\n```\ngit-haiku-format HEAD~\n```")
+        labels = {"Haiku-Format": -1}
 
-    return ReviewInput(message=message, comments=comments)
+    return ReviewInput(message=message, comments=comments, labels=labels, notify=NotifyEnum.OWNER)
 
 
 if __name__ == "__main__":

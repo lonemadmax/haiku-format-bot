@@ -333,10 +333,10 @@ class NotifyEnum(StrEnum):
     submitting a ReviewInput.
     When unset, the default is ALL.
     """
-    NONE = auto()
-    OWNER = auto()
-    OWNER_REVIEWERS = auto()
-    ALL = auto()
+    NONE = "NONE"
+    OWNER = "OWNER"
+    OWNER_REVIEWERS = "OWNER_REVIEWERS"
+    ALL = "ALL"
 
 
 @dataclass
