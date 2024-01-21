@@ -37,6 +37,10 @@ The tool's functionality is implemented in the following modules:
 4. The `models.py` module contains the internal models that codify business logic when processing
    Gerrit changes, as well as the data structures that are sent to Gerrit when posting the
    reviews.
+5. The `runners.py` module implements the logic to select changes for Gerrit that need to be 
+   formatted, apply the formatting, and submit the reviews. It includes error handling, 
+   in order to let the system skip changes that cannot be reformatted due to a bug in this bot,
+   or at any other layer.
 
 Development and Testing
 -----------------------
