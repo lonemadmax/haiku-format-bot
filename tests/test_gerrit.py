@@ -20,12 +20,6 @@ def context_get_mock(self, url: str, params=None):
     if url == "changes/" and params is None:
         # This is the get operation to check if the Gerrit URL is valid
         return
-    # ContextTest.test_get_change_id_from_number()
-    elif url == "changes/" and "change:5692" in params.values():
-        with open(os.path.join(data_path, "test_gerrit_get_change.json")) as f:
-            return json.load(f)
-    elif url == "changes/" and "change:19000" in params.values():
-        return []
     # ContextTest.test_get_change()
     elif url == "changes/test_get_change/revisions/current/files":
         with open(os.path.join(data_path, "test_gerrit_revision_files.json")) as f:
@@ -68,11 +62,22 @@ def context_post_mock(self, url: str, content: list[Any] | dict[str, Any]):
     raise ValueError("Input URL is not mocked: %s" % url)
 
 
+def context_query_mock(self, query_options: list[str], params: dict[str, Any]) -> list[Any]:
+    data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+    # ContextTest.test_get_change_id_from_number()
+    if query_options == ["change:5692"]:
+        with open(os.path.join(data_path, "test_gerrit_get_change.json")) as f:
+            return json.load(f)
+    elif query_options == ["change:19000"]:
+        return []
+
+
 class ContextTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         Context._get = context_get_mock
         Context._post = context_post_mock
+        Context._query = context_query_mock
         cls._context = Context("https://test-gerrit/")
 
     @classmethod
@@ -102,6 +107,21 @@ class ContextTest(unittest.TestCase):
         review_input = ReviewInput("test_publish_review")
         self._context.publish_review("test_publish_review", review_input)
         self._context.publish_review("test_publish_review", review_input, "custom_revision")
+
+    def test_format_query_string(self):
+        # Test single option (so no + expected)
+        query_options = ["change:1000"]
+        url_with_no_params = "https://mocktest/changes/"
+        url = self._context._append_query_string(url_with_no_params, query_options)
+        self.assertEqual(url, "https://mocktest/changes/?q=change:1000")
+
+        # Test multiple options
+        query_options = ["change:1000", "-is:wip"]
+        url = self._context._append_query_string(url_with_no_params, query_options)
+        self.assertEqual(url, "https://mocktest/changes/?q=change:1000+-is:wip")
+        url_with_params = "https://mocktest/changes/?o=CURRENT&n=2"
+        url = self._context._append_query_string(url_with_params, query_options)
+        self.assertEqual(url, "https://mocktest/changes/?o=CURRENT&n=2&q=change:1000+-is:wip")
 
     def test_auth(self):
         """Test whether Context.auth() correctly picks up values from the environment.

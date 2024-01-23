@@ -5,6 +5,10 @@
 # Authors:
 #  Niels Sascha Reedijk, niels.reedijk@gmail.com
 #
+"""
+This module implements the logic to exchange data with Gerrit. GET requests are converted into the models that are used
+by other parts of this tool. POST requests are serialized from the internal models into the json format Gerrit expects.
+"""
 import json
 import logging
 import os
@@ -56,8 +60,7 @@ class Context:
 
     def get_change_and_revision_from_number(self, change_number: int) -> tuple[str, str]:
         """Retrieve the change id and latest revision id from a change number"""
-        changes: list[Any] = self._get("changes/",
-                                       params={"q": "change:%i" % change_number, "o": "CURRENT_REVISION"})
+        changes: list[Any] = self._query(["change:%i" % change_number], {"o": "CURRENT_REVISION"})
         if len(changes) == 0:
             raise ValueError("Invalid change number")
         return changes[0]["id"], changes[0]["current_revision"]
@@ -106,6 +109,43 @@ class Context:
             return json.loads(response.text[4:])
         else:
             raise RuntimeError("Invalid content type: %s" % response.headers['Content-Type'])
+
+    @classmethod
+    def _append_query_string(cls, url, query_options: list[str]) -> str:
+        """Helper function that modifies the `url` and appends the query_options manually to bypass `requests` automatic
+        URL escaping, which is incompatible with Gerrit.
+        """
+        if url[-1] == '/':
+            url += "?q="
+        else:
+            url += "&q="
+        query_string = "+".join(query_options)
+        url += quote(query_string, safe='+:')
+        return url
+
+    def _query(self, query_options: list[str], params: dict[str, Any]) -> list[Any]:
+        """Method to get contents from the /changes/ endpoint.
+        The query_options is the list of search terms. The `params` allows passing of other parameters. The parameters
+        are not validated.
+        The method returns a list of zero or more dicts that represent the resulting query set.
+
+        Note that this method exists to override the default behavior of the `requests` module, which is to encode
+        all query parameters, which means that characters like : and + are escaped. Gerrit does not like that, so this
+        method manually reformats the 'q' parameter to the url and appends it before sending.
+        (See: https://docs.python-requests.org/en/latest/user/advanced/#prepared-requests)
+        """
+        if len(query_options) == 0:
+            raise RuntimeError("Query expects at least one query option (alternatively use standard get)")
+        url = urljoin(self._gerrit_url, "changes/")
+        session = requests.Session()
+        request = requests.Request('GET', url, params=params).prepare()
+        request.url = self._append_query_string(request.url, query_options)
+        response = session.send(request)
+        if response.status_code != 200:
+            raise RuntimeError("Invalid response from %s: %i (expected 200)" % (response.url, response.status_code))
+        if not response.text.startswith(")]}'"):
+            raise RuntimeError("Invalid response from %s: content does not start with marker" % response.url)
+        return json.loads(response.text[4:])
 
     @property
     def auth(self) -> tuple[str, str]:
