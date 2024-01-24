@@ -49,7 +49,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="haiku-format-bot",
         description="Automates running `haiku-format` on changes on Haiku's Gerrit instance")
+    parser.add_argument("--days", type=int, default=3,
+                        help="Number of days in the past to select changes for reformatting")
     args = parser.parse_args()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-    start_date = date.today() - timedelta(days = 3)
+    start_date = date.today() - timedelta(days = args.days)
     format_changes(start_date)
