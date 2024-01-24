@@ -71,6 +71,12 @@ class Context:
         data = strip_empty_values_from_input_dict(review)
         self._post(review_url, data)
 
+    def query_changes(self, query_options: list[str], params: dict[str, Any]) -> list[Any]:
+        """Query Gerrit for changes using the query_options and the params. The arguments are not validated.
+
+        Returns a list of zero or more dicts representing the ChangeInfo object."""
+        return self._query(query_options, params)
+
     def _get(self, url: str, params=None) -> list[Any] | dict[str, Any] | str:
         """Get resources from Gerrit and do some basic validations.
         Depending on the type of request, the return value is either a list (from JSON), a dict (from JSON) or plain
