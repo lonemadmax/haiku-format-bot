@@ -16,8 +16,8 @@ import logging
 import sys
 from datetime import date, timedelta
 
+from .core import reformat_change
 from .gerrit import Context
-
 
 _ALL_CHANGES_QUERY_OPTIONS = list([
     "status:open",
@@ -30,7 +30,7 @@ _ALL_CHANGES_QUERY_OPTIONS = list([
 ])
 
 
-def format_changes(after: date):
+def format_changes(after: date, submit: bool = False):
     """Fetch all relevant changes from Gerrit, and apply haiku-format.
 
     This method is designed to be called repeatedly.
@@ -43,15 +43,20 @@ def format_changes(after: date):
     changes = context.query_changes(query_options, {"o": "CURRENT_REVISION"})
     logger.info("Found %i changes" % len(changes))
 
+    for change in reversed(changes):
+        reformat_change(context, change["id"], change["current_revision"], submit)
+
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(
         prog="haiku-format-bot",
         description="Automates running `haiku-format` on changes on Haiku's Gerrit instance")
     parser.add_argument("--days", type=int, default=3,
                         help="Number of days in the past to select changes for reformatting")
+    parser.add_argument('--submit', action="store_true", help="submit the reviews to gerrit")
     args = parser.parse_args()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-    start_date = date.today() - timedelta(days = args.days)
-    format_changes(start_date)
+    start_date = date.today() - timedelta(days=args.days)
+    format_changes(start_date, args.submit)
