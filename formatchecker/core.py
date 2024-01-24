@@ -23,17 +23,16 @@ EXTENSION_PATTERN = (r"^.*\.(?:cpp|cc|c\+\+|cxx|cppm|ccm|cxxm|c\+\+m|c|cl|h|hh|h
                      r"|hxx|m|mm|inc|js|ts|proto|protodevel|java|cs|json|s?vh?)$")
 
 
-def reformat_change(gerrit_url:str, change_id: int | str, revision_id: str = "current", submit: bool = False):
+def reformat_change(context: Context, change_id: int | str, revision_id: str = "current", submit: bool = False):
     """Function to fetch a change, reformat it.
     The function returns a dict that contains the data that can be posted to the review endpoint on Gerrit.
     """
     logger = logging.getLogger("core")
     logger.info("Fetching change details for %s" % str(change_id))
-    ctx = Context(gerrit_url)
     if isinstance(change_id, int):
         # convert a change number to an id
-        change_id, revision_id = ctx.get_change_and_revision_from_number(change_id)
-    change = ctx.get_change(change_id, revision_id)
+        change_id, revision_id = context.get_change_and_revision_from_number(change_id)
+    change = context.get_change(change_id, revision_id)
     for f in change.files:
         if not re.match(EXTENSION_PATTERN, f.filename, re.IGNORECASE):
             logger.info("Ignoring %s because it does not seem to be a file that `clang-format` can handle" % f.filename)
@@ -63,13 +62,13 @@ def reformat_change(gerrit_url:str, change_id: int | str, revision_id: str = "cu
     review_input = _change_to_review_input(change)
     # Convert review input into json
     if submit:
-        ctx.publish_review(change_id, review_input, revision_id)
+        context.publish_review(change_id, review_input, revision_id)
         logger.info("The review has been submitted to Gerrit")
     else:
         output = strip_empty_values_from_input_dict(review_input)
         with open("review.json", "wt") as f:
             f.write(json.dumps(output, indent=4))
-        url = "%sa/changes/%s/revisions/%s/review" % (gerrit_url, change_id, revision_id)
+        url = "/a/changes/%s/revisions/%s/review" % (change_id, revision_id)
         logger.info("POST the contents of review.json to: %s", url)
 
 
@@ -128,4 +127,5 @@ if __name__ == "__main__":
     parser.add_argument('change_number', type=int)
     args = parser.parse_args()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-    reformat_change("https://review.haiku-os.org/", args.change_number, submit=args.submit)
+    gerrit = Context("https://review.haiku-os.org/")
+    reformat_change(gerrit, args.change_number, submit=args.submit)
