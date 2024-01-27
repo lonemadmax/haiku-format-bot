@@ -20,7 +20,7 @@ import requests
 from base64 import b64decode
 from urllib.parse import quote, urljoin
 
-from .models import Change, File, ReviewInput, strip_empty_values_from_input_dict
+from .models import Change, File, ReviewInput, strip_empty_values_from_input_dict, HashtagsInput
 
 
 class Context:
@@ -76,6 +76,12 @@ class Context:
 
         Returns a list of zero or more dicts representing the ChangeInfo object."""
         return self._query(query_options, params)
+
+    def set_hashtags(self, change_id: str, hashtags: HashtagsInput) -> list[str]:
+        """Modify the hashtags set on a Gerrit change."""
+        hashtags_url = "changes/%s/hashtags" % change_id
+        data = strip_empty_values_from_input_dict(hashtags)
+        return self._post(hashtags_url, data)
 
     def _get(self, url: str, params=None) -> list[Any] | dict[str, Any] | str:
         """Get resources from Gerrit and do some basic validations.

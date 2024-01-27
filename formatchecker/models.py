@@ -363,6 +363,15 @@ class ReviewInput:
     ignore_automatic_attention_set_rules: bool | None = None
 
 
+@dataclass
+class HashtagsInput:
+    """Gerrit object that represents a list of modifications of hashtags on a change.
+    See: https://review.haiku-os.org/Documentation/rest-api-changes.html#hashtags-input
+    """
+    add: list[str] | None = None
+    remove: list[str] | None = None
+
+
 # Utility function
 def strip_empty_values_from_input_dict(data) -> dict[str, Any]:
     """Helper to post data to the Gerrit API. The models above allow setting None as a value, when the API documentation
