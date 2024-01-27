@@ -23,7 +23,7 @@ _ALL_CHANGES_QUERY_OPTIONS = list([
     "status:open",
     "repo:haiku",
     "-is:wip",
-    "-label:Haiku-Format",
+    "-label:Haiku-Format=ANY",
     "-hashtag:format-bot-skip",
     "-hashtag:format-bot-failed",
     "limit:100"
