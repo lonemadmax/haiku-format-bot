@@ -55,13 +55,18 @@ In order to use the functionality to reformat a Gerrit change, you run the follo
 from the root of the project:
 
 ```bash
-# Run the formatchecker on change 1000. The result is stored in a file called `review.json`
+# Run the haiku format bot on change 1000. The result is stored in a file called `review.json`
 python3 -m formatchecker.core 1000
 
-# Run the formatchecker and submit it
+# Run the haiku format bot for a single and submit it
 export GERRIT_USER=user
 export GERRIT_PASSWORD=http_password_for_user
 python3 -m formatchecker.core --submit 1000
+
+# Run the haiku format bot on all changes in the past 3 days. If they have been checked before, they are excluded.
+export GERRIT_USER=user
+export GERRIT_PASSWORD=http_password_for_user
+python3 -m formatchecker.runner --submit
 ```
 
 The test suite can be run using `python3 -m unittest` in the root of the project.
