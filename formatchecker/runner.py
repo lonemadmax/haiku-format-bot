@@ -73,7 +73,8 @@ if __name__ == "__main__":
     parser.add_argument('--daemon', action="store_true", help="submit")
     parser.add_argument('--submit', action="store_true", help="submit the reviews to gerrit")
     args = parser.parse_args()
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', stream=sys.stdout,
+                        datefmt="%Y-%m-%d %H:%M:%S", level=logging.INFO)
     start_date = date.today() - timedelta(days=args.days)
     if args.daemon:
         daemon_mode(args.timeout, start_date, args.submit)
