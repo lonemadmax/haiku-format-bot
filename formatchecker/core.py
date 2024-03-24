@@ -59,7 +59,7 @@ def reformat_change(context: Context, change_id: int | str, revision_id: str = "
         else:
             logger.info("%s: %i segment(s) reformatted" % (f.filename, len(f.format_segments)))
 
-    review_input = _change_to_review_input(change)
+    review_input = _change_to_review_input(change, logger)
     # Convert review input into json
     if submit:
         context.publish_review(change_id, review_input, revision_id)
@@ -72,12 +72,14 @@ def reformat_change(context: Context, change_id: int | str, revision_id: str = "
         logger.info("POST the contents of review.json to: %s", url)
 
 
-def _change_to_review_input(change: Change) -> ReviewInput:
+def _change_to_review_input(change: Change, logger) -> ReviewInput:
     """Internal function that converts a change into a ReviewInput object that can be pushed to Gerrit"""
     comments: dict[str, list[CommentInput]] = {}
     for f in change.files:
         if f.formatted_contents is None or len(f.format_segments) == 0:
             continue
+        # WORKAROUND: get all lines in class definitions
+        skip_lines_set = set(get_class_lines_in_file(f.patch_contents))
         for segment in f.format_segments:
             end = segment.end
             match segment.reformat_type:
@@ -86,6 +88,11 @@ def _change_to_review_input(change: Change) -> ReviewInput:
                     operation = "insert after"
                 case ReformatType.MODIFICATION:
                     operation = "change"
+            # WORKAROUND: check if the reformatted segment overlaps with a class definition
+            segment_lines_set = set(range(segment.start, end + 1, 1))
+            if len(skip_lines_set & segment_lines_set) > 0:
+                logger.warning("Class Workaround: [%s] skipped lines %s" % (f.filename, str(segment_lines_set)))
+                continue
             # As per the documentation, set the end point to character 0 of the next line to select all lines
             # between start_line and end_line (excluding any content of end_line)
             # https://review.haiku-os.org/Documentation/rest-api-changes.html#comment-range
