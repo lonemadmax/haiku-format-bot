@@ -86,7 +86,7 @@ def run_clang_format(contents: list[str], segment_ranges: list[str]) -> list[str
     """Run clang-format over a contents, limited to a set of ranges. The output of clang-format is returned as a list
     of lines
     """
-    command = [FORMAT_COMMAND]
+    command = [FORMAT_COMMAND, '-style', '{BasedOnStyle: Haiku, SpaceAfterCStyleCast: false}']
     # TODO see notes: clang-format seems to resort includes even outside of the changed segments
     # command.append('-sort-includes=0')
     for segment in segment_ranges:
