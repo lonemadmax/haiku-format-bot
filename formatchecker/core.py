@@ -118,6 +118,44 @@ def _change_to_review_input(change: Change) -> ReviewInput:
     return ReviewInput(message=message, comments=comments, labels=labels, notify=NotifyEnum.OWNER)
 
 
+_CLASS_DECLARATION_PATTERN = re.compile('^(?:class|struct) .*;$')
+_CLASS_DEFINITION_START_PATTERN = re.compile('^(?:class|struct) .*$')
+
+
+def get_class_lines_in_file(contents: list[str]) -> list[int]:
+    """Parse a list of contents to find top level classes, and return a list of line numbers that are inside the class.
+
+    This utility is part of a WORKAROUND to skip parsing the contents of class definitions.
+    """
+    if len(contents) == 0:
+        return []
+
+    skip_lines = []
+    in_class = False
+    level = 0
+    for lineno, line in enumerate(contents, start=1):
+        if not in_class:
+            # Try to skip declarations (or empty single line class definitions)
+            if _CLASS_DECLARATION_PATTERN.match(line):
+                continue
+            # Look for 'class' at the beginning of the line. This will not catch nested classes.
+            if _CLASS_DEFINITION_START_PATTERN.match(line):
+                in_class = True
+                level += line.count('{')
+                level -= line.count('}')
+            # even if we found a class, we allow clang-format to reformat the first line
+            continue
+
+        # update level
+        level += line.count('{')
+        level -= line.count('}')
+        if level == 0:
+            in_class = False
+            continue
+        skip_lines.append(lineno)
+    return skip_lines
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(
