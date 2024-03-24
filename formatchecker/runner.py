@@ -14,6 +14,7 @@ The module can run independently.
 """
 import logging
 import sys
+import time
 from datetime import date, timedelta
 
 from .core import reformat_change
@@ -47,6 +48,18 @@ def format_changes(after: date, submit: bool = False):
         reformat_change(context, change["id"], change["current_revision"], submit)
 
 
+def daemon_mode(timeout: int, after: date, submit: bool = False):
+    logger = logging.getLogger("daemon")
+    logger.info("Starting daemon with timeout set to %i seconds" % timeout)
+    if not submit:
+        logger.warning("Running in dry-run mode (submit is set to false)")
+    while True:
+        logger.info("Starting daemon run")
+        format_changes(after, submit)
+        logger.info("Daemon run finished. Sleeping for %i seconds" % timeout)
+        time.sleep(timeout)
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -55,8 +68,14 @@ if __name__ == "__main__":
         description="Automates running `haiku-format` on changes on Haiku's Gerrit instance")
     parser.add_argument("--days", type=int, default=3,
                         help="Number of days in the past to select changes for reformatting")
+    parser.add_argument("--timeout", type=int, default=300,
+                        help="Time in seconds to wait between runs when in daemon mode")
+    parser.add_argument('--daemon', action="store_true", help="submit")
     parser.add_argument('--submit', action="store_true", help="submit the reviews to gerrit")
     args = parser.parse_args()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     start_date = date.today() - timedelta(days=args.days)
-    format_changes(start_date, args.submit)
+    if args.daemon:
+        daemon_mode(args.timeout, start_date, args.submit)
+    else:
+        format_changes(start_date, args.submit)
