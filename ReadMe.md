@@ -88,4 +88,8 @@ podman run format-check-bot:dev python3 -m formatchecker.core 1000
 
 # Run the format check for change 1000 and submit
 podman run -e GERRIT_USERNAME=user -e GERRIT_PASSWORD=http_password_for-user format-check-bot:dev python3 -m formatchecker.core --submit 1000
+
+# Run the format check in daemon mode
+podman run -e GERRIT_USERNAME=user -e GERRIT_PASSWORD=http_password_for-user format-check-bot:dev python3 -m formatchecker.runner --daemon --submit
+
 ```
